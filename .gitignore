@@ -1,0 +1,9 @@
+.vs/
+Bin/
+Int/
+
+Makefile
+*.make
+*.sln 
+*.vcxproj
+*.vcxproj.*

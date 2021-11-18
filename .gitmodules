@@ -1,0 +1,6 @@
+[submodule "ThirdParty/CommonCLI"]
+	path = ThirdParty/CommonCLI
+	url = https://github.com/MarcasRealAccount/CommonCLI.git
+[submodule "ThirdParty/Piccolo"]
+	path = ThirdParty/Piccolo
+	url = https://github.com/PiccoloLang/piccolo.git
