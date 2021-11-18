@@ -15,6 +15,7 @@ extern "C" {
 
 #include <cstdarg>
 
+#include <filesystem>
 #include <iostream>
 #include <sstream>
 
@@ -40,7 +41,8 @@ namespace MMake {
 		piccolo_addDebugLib(engine);
 #endif
 
-		piccolo_Package* package = piccolo_loadPackage(engine, "mmake.pic");
+		std::filesystem::path mainPicFile = std::filesystem::current_path() / "mmake.pic";
+		piccolo_Package* package          = piccolo_loadPackage(engine, mainPicFile.string().c_str());
 		if (package->compilationError) {
 			piccolo_freeEngine(engine);
 			delete engine;
