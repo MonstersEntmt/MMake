@@ -29,30 +29,33 @@ identifier:         '[A-Za-z_][A-Za-z0-9_]*'
 arguments:          argument? separatedArguments*
 separatedArguments: separation+ argument?
 					separation* '\\(' arguments '\\)'
-separation:         space
+separation?:        space
                     lineEnding
 
 argument: bracketArgument
           quotedArgument
           unquotedArgument
 
-bracketArgument: bracketOpen backetContent braketClose
+bracketArgument: bracketOpen bracketContent bracketClose
 bracketOpen:     '\\[' (<BracketCount>: '='*) '\\['
 bracketContent:  ('.' | newline)*
 bracketClose:    '\\]' \BracketCount '\\]'
 
-quotedArgument:     '"' quotedElement* '"'
-quotedElement:      '(?:[^"\\]|\\.|\\\n)*'
-                    escapeSequence
-                    quotedContinuation
-quotedContinuation: '\\' newline
+quotedArgument:      '"' quotedElement* '"'
+quotedElement:       escapeSequence
+                     quotedContinuation
+                     (newline | '[^"\\]')*
+quotedContinuation?: '\\' newline
 
-unquotedArgument: unquotedElement+ | unqoutedLegacy
-unqoutedElement:  '(?:[^\\s()#"\\\\])+'
-                  escapeSequence
+unquotedArgument: unquotedElement+
+                  unqoutedLegacy
+unqoutedElement:  escapeSequence
+                  '(?:[^\\s()#"\\\\])+'
 unquotedLegacy:   <TODO: IDK WHAT THIS IS FUCK CMAKE DOCS>
 
-escapeSequence:  escapeIdentity | escapeEncoded | escapeSemicolon
+escapeSequence:  escapeIdentity
+                 escapeEncoded
+                 escapeSemicolon
 escapeIdentity:  '\\[^A-Za-z0-9;]'
 escapeEncoded:   '\\t' | '\\r' | '\\n'
 escapeSemicolon: '\\;'
