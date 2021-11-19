@@ -20,7 +20,11 @@ end
 
 workspace("MMake")
 	configurations({ "Debug", "Release", "Dist" })
-	platforms({ "x64", "x86", "arm", "arm64" })
+if _OS == "macosx" then
+	platforms({ "x64" })
+else
+	platforms({ "x86", "x64" })
+end
 
 	cdialect("C99")
 	cppdialect("C++20")

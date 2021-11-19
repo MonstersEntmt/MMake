@@ -1,9 +1,23 @@
-.vs/
-Bin/
-Int/
+# Output
+/Bin/
 
-Makefile
-*.make
-*.sln 
+# Visual Studio
+/.vs/
+*.sln
 *.vcxproj
 *.vcxproj.*
+
+# Makefile
+Makefile
+*.Make
+*.mak
+
+# XCode
+*.xcworkspace
+*.xcodeproj/
+
+# Macos
+*.DS_Store
+
+# Premake
+premake5.exe
