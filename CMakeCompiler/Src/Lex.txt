@@ -1,0 +1,61 @@
+# Line:       '(?:(<Comment>:)|(<Empty>:)|(<Rule>:)\s*(<Comment>:)?)\s*\n'
+# Comment:      '#.*'
+# Empty:        '\s*'
+# Rule:         '(<Identifier>:):\\s+(<Value>:)'
+# Skipped Rule: '(<Identifier>:)\\?:\\s+(<Value>:)'
+# Identifier:   '[A-Za-z_][A-Za-z0-9_]*'
+# Value: one of
+#   Identifier:  '(<Identifier>:)'
+#   Regex:       '\'(?:[^\'\\]|\\.|\\\n)*\''
+#   Combination: '(<Value>:)\\s+(<Value>:)'
+#   Regex *:     '(<Value>:)*'
+#   Regex +:     '(<Value>:)+'
+#   Regex ?:     '(<Value>:)?'
+#   Or:          '(<Value>:)\\s*\\|\\s*(<Value>:)'
+#   Group:       '\\(\\s*(<Value>:)\\s*\\)'
+#   Branch:      '(<Value>:)\n\s+(<Value>:)'
+#   NamedGroup:  '\\(<(<Identifier>:)>:\\s*(<Value>:)\\)'
+#   Reference:   '\\\\(<Identifier>:)'
+
+file:        fileElement*
+fileElement: commandInvocation lineEnding
+             (bracketComment | space)* lineEnding
+lineEnding:  lineComment? newline
+space?:      (' ' | '\t')+
+newline?:    '\n'
+
+commandInvocation:  space* identifier space* '\\(' arguments '\\)'
+identifier:         '[A-Za-z_][A-Za-z0-9_]*'
+arguments:          argument? separatedArguments*
+separatedArguments: separation+ argument?
+					separation* '\\(' arguments '\\)'
+separation:         space
+                    lineEnding
+
+argument: bracketArgument
+          quotedArgument
+          unquotedArgument
+
+bracketArgument: bracketOpen backetContent braketClose
+bracketOpen:     '\\[' (<BracketCount>: '='*) '\\['
+bracketContent:  ('.' | newline)*
+bracketClose:    '\\]' \BracketCount '\\]'
+
+quotedArgument:     '"' quotedElement* '"'
+quotedElement:      '(?:[^"\\]|\\.|\\\n)*'
+                    escapeSequence
+                    quotedContinuation
+quotedContinuation: '\\' newline
+
+unquotedArgument: unquotedElement+ | unqoutedLegacy
+unqoutedElement:  '(?:[^\\s()#"\\\\])+'
+                  escapeSequence
+unquotedLegacy:   <TODO: IDK WHAT THIS IS FUCK CMAKE DOCS>
+
+escapeSequence:  escapeIdentity | escapeEncoded | escapeSemicolon
+escapeIdentity:  '\\[^A-Za-z0-9;]'
+escapeEncoded:   '\\t' | '\\r' | '\\n'
+escapeSemicolon: '\\;'
+
+lineComment?:    '#(?!\\[=*\\[).*'
+bracketComment?: '#' bracketArgument
