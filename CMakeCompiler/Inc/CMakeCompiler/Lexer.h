@@ -12,6 +12,10 @@ namespace CMakeCompiler {
 	public:
 		SourceRef() = default;
 		SourceRef(std::size_t index, std::size_t line, std::size_t column);
+		SourceRef(const SourceRef&) = default;
+		SourceRef(SourceRef&&)      = default;
+		SourceRef& operator=(const SourceRef&) = default;
+		SourceRef& operator=(SourceRef&&) = default;
 
 		std::size_t m_Index  = 0;
 		std::size_t m_Line   = 1;
@@ -58,6 +62,8 @@ namespace CMakeCompiler {
 		LexError() = default;
 		LexError(const std::string& message, const SourceRef& at);
 		LexError(std::string&& message, SourceRef&& at);
+		LexError(const LexError&) = default;
+		LexError(LexError&&)      = default;
 
 		std::string m_Message;
 		SourceRef m_At;
@@ -91,7 +97,7 @@ namespace CMakeCompiler {
 	bool lexLineComment(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors);
 	bool lexBracketComment(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors);
 
-	Lex lexString(std::string_view str, SourceRef begin, SourceRef& end, std::vector<LexError>& errors) {
+	inline Lex lexString(std::string_view str, SourceRef begin, SourceRef& end, std::vector<LexError>& errors) {
 		Lex lex;
 		if (!lexFile(str, begin, end, lex.m_Root, errors))
 			errors.emplace_back("File is for sure not a CMake script so don't try!", begin);

@@ -19,8 +19,9 @@ namespace CMakeCompiler {
 			LexNode elementNode;
 			if (!lexFileElement(str, currentRef, end, elementNode, errors))
 				break;
-			node.m_Children.push_back(std::move(elementNode));
+			str        = str.substr(end.m_Index - currentRef.m_Index);
 			currentRef = end;
+			node.m_Children.push_back(std::move(elementNode));
 		}
 		node.m_Type  = LexNodeType::File;
 		node.m_Begin = begin;
@@ -58,53 +59,47 @@ namespace CMakeCompiler {
 			std::string_view tempStr = str;
 			SourceRef tempBegin      = begin;
 			SourceRef tempEnd        = begin;
-			std::vector<LexNode> tempNodes;
 			LexNode lineEnding;
 			std::vector<LexError> tempErrors;
 
+			LexNode tempNode;
 			while (true) {
-				LexNode element;
-				if (lexBracketComment(tempStr, tempBegin, tempEnd, element, tempErrors)) {
+				if (lexBracketComment(tempStr, tempBegin, tempEnd, tempNode, tempErrors)) {
 					tempStr   = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
 					tempBegin = tempEnd;
-					tempNodes.push_back(std::move(element));
 					continue;
 				}
 
-				if (lexSpace(tempStr, tempBegin, tempEnd, element, tempErrors)) {
+				if (lexSpace(tempStr, tempBegin, tempEnd, tempNode, tempErrors)) {
 					tempStr   = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
 					tempBegin = tempEnd;
-					tempNodes.push_back(std::move(element));
 					continue;
 				}
 
 				break;
 			}
 
-			for (auto& error : tempErrors)
-				errors.push_back(std::move(error));
-
 			if (!lexLineEnding(tempStr, tempBegin, tempEnd, lineEnding, errors)) {
-				errors.emplace_back("Expected lineEnding", tempBegin);
+				//errors.emplace_back("Expected lineEnding", tempBegin);
 				return false;
 			}
 
 			end = tempEnd;
-			for (auto& node : tempNodes)
-				node.m_Children.push_back(std::move(node));
 			node.m_Children.push_back(std::move(lineEnding));
 			return true;
 		};
 
-		if (!variant1()) {
-			if (!variant2()) {
-				errors.emplace_back("Expected commandInvocation or lineEnding", begin);
-				return false;
-			}
+		if (variant1()) {
+			node.m_Type  = LexNodeType::FileElement;
+			node.m_Begin = begin;
+			node.m_End   = end;
+			return true;
 		}
-		node.m_Type  = LexNodeType::FileElement;
-		node.m_Begin = begin;
-		node.m_End   = end;
+
+		if (!variant2()) {
+			// errors.emplace_back("Expected commandInvocation or lineEnding", begin);
+			return false;
+		}
 		return true;
 	}
 
@@ -117,14 +112,12 @@ namespace CMakeCompiler {
 		std::vector<LexError> tempErrors;
 
 		if (lexLineComment(str, tempBegin, tempEnd, lineComment, tempErrors)) {
-			str       = str.substr(tempEnd.m_Index, tempBegin.m_Index);
+			str       = str.substr(tempEnd.m_Index - tempBegin.m_Index);
 			tempBegin = tempEnd;
 		}
 
-		if (!lexNewline(str, tempBegin, end, newline, errors)) {
-			errors.emplace_back("Expected newline", tempBegin);
+		if (!lexNewline(str, tempBegin, end, newline, errors))
 			return false;
-		}
 		node.m_Type  = LexNodeType::LineEnding;
 		node.m_Begin = begin;
 		node.m_End   = end;
@@ -133,10 +126,8 @@ namespace CMakeCompiler {
 
 	bool lexSpace(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors) {
 		// (' ' | '\t')+
-		if (str.empty() || (str[0] != ' ' && str[0] != '\t')) {
-			errors.emplace_back("Expected space or tab", begin);
+		if (str.empty() || (str[0] != ' ' && str[0] != '\t'))
 			return false;
-		}
 
 		std::size_t len = 1;
 		while (len < str.size()) {
@@ -162,14 +153,12 @@ namespace CMakeCompiler {
 
 	bool lexNewline(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors) {
 		// '\n'
-		if (str.empty() || str[0] != '\n') {
-			errors.emplace_back("Expected newline", begin);
+		if (str.empty() || str[0] != '\n')
 			return false;
-		}
 
 		end.m_Index  = begin.m_Index + 1;
 		end.m_Line   = begin.m_Line + 1;
-		end.m_Column = 0;
+		end.m_Column = 1;
 		return true;
 	}
 
@@ -190,7 +179,7 @@ namespace CMakeCompiler {
 		}
 
 		if (!lexIdentifier(str, tempBegin, tempEnd, identifier, errors)) {
-			errors.emplace_back("Expected identifier", tempBegin);
+			//errors.emplace_back("Expected identifier", tempBegin);
 			return false;
 		}
 		node.m_Children.push_back(std::move(identifier));
@@ -206,7 +195,7 @@ namespace CMakeCompiler {
 		}
 
 		if (str.empty() || str[0] != '(') {
-			errors.emplace_back("Expected '('", tempBegin);
+			//errors.emplace_back("Expected '('", tempBegin);
 			return false;
 		}
 		str = str.substr(1);
@@ -214,7 +203,7 @@ namespace CMakeCompiler {
 		++tempBegin.m_Column;
 
 		if (!lexArguments(str, tempBegin, tempEnd, arguments, errors)) {
-			errors.emplace_back("Expected arguments", tempBegin);
+			//errors.emplace_back("Expected arguments", tempBegin);
 			return false;
 		}
 		node.m_Children.push_back(std::move(arguments));
@@ -222,7 +211,7 @@ namespace CMakeCompiler {
 		tempBegin = tempEnd;
 
 		if (str.empty() || str[0] != ')') {
-			errors.emplace_back("Expected ')'", tempBegin);
+			//errors.emplace_back("Expected ')'", tempBegin);
 			return false;
 		}
 		str = str.substr(1);
@@ -239,7 +228,7 @@ namespace CMakeCompiler {
 	bool lexIdentifier(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors) {
 		// '[A-Za-z_][A-Za-z0-9_]*'
 		if (str.empty() || (!isalpha(str[0]) && str[0] != '_')) {
-			errors.emplace_back("Expected character between 'A'-'Z', 'a'-'z' or '_'", begin);
+			//errors.emplace_back("Expected character between 'A'-'Z', 'a'-'z' or '_'", begin);
 			return false;
 		}
 
@@ -273,12 +262,14 @@ namespace CMakeCompiler {
 
 		while (true) {
 			LexNode separatedArgument;
-			if (!lexSeparatedArguments(tempStr, tempBegin, tempEnd, separatedArgument, errors))
+			if (!lexSeparatedArguments(tempStr, tempBegin, tempEnd, separatedArgument, tempErrors))
 				break;
 			tempStr   = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
 			tempBegin = tempEnd;
 			node.m_Children.push_back(std::move(separatedArgument));
 		}
+
+		end = tempEnd;
 
 		node.m_Type  = LexNodeType::Arguments;
 		node.m_Begin = begin;
@@ -308,14 +299,13 @@ namespace CMakeCompiler {
 			if (!hasSeparation)
 				return false;
 
-			if (!lexArgument(tempStr, tempBegin, tempEnd, tempArgument, tempErrors))
-				return false;
+			if (lexArgument(tempStr, tempBegin, tempEnd, tempArgument, tempErrors))
+				node = std::move(tempArgument);
 
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
 
-			end  = tempEnd;
-			node = std::move(tempArgument);
+			end = tempEnd;
 			return true;
 		};
 
@@ -339,7 +329,7 @@ namespace CMakeCompiler {
 				errors.push_back(std::move(error));
 
 			if (str.empty() || str[0] != '(') {
-				errors.emplace_back("Expected '('", tempBegin);
+				//errors.emplace_back("Expected '('", tempBegin);
 				return false;
 			}
 			str = str.substr(1);
@@ -347,14 +337,14 @@ namespace CMakeCompiler {
 			++tempBegin.m_Column;
 
 			if (!lexArguments(tempStr, tempBegin, tempEnd, arguments, errors)) {
-				errors.emplace_back("Expected arguments", tempBegin);
+				//errors.emplace_back("Expected arguments", tempBegin);
 				return false;
 			}
 			tempStr   = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
 			tempBegin = tempEnd;
 
 			if (str.empty() || str[0] != ')') {
-				errors.emplace_back("Expected ')'", tempBegin);
+				//errors.emplace_back("Expected ')'", tempBegin);
 				return false;
 			}
 			str = str.substr(1);
@@ -368,7 +358,7 @@ namespace CMakeCompiler {
 
 		if (!variant1()) {
 			if (!variant2()) {
-				errors.emplace_back("Expected argument or '(' arguments ')'", begin);
+				//errors.emplace_back("Expected argument or '(' arguments ')'", begin);
 				return false;
 			}
 		}
@@ -380,7 +370,7 @@ namespace CMakeCompiler {
 		if (!lexSpace(str, begin, end, node, errors)) {
 			// lineEnding
 			if (!lexLineEnding(str, begin, end, node, errors)) {
-				errors.emplace_back("Expected space or lineEnding", begin);
+				//errors.emplace_back("Expected space or lineEnding", begin);
 				return false;
 			}
 		}
@@ -394,7 +384,7 @@ namespace CMakeCompiler {
 			if (!lexQuotedArgument(str, begin, end, node, errors)) {
 				// unquotedArgument
 				if (!lexUnquotedArgument(str, begin, end, node, errors)) {
-					errors.emplace_back("Expected bracketArgument, QuotedArgument or UnquotedArgument", begin);
+					//errors.emplace_back("Expected bracketArgument, QuotedArgument or UnquotedArgument", begin);
 					return false;
 				}
 			}
@@ -414,21 +404,21 @@ namespace CMakeCompiler {
 		std::size_t bracketCount = 0;
 
 		if (!lexBracketOpen(tempStr, tempBegin, tempEnd, bracketOpen, errors, bracketCount)) {
-			errors.emplace_back("Expected bracketOpen", tempBegin);
+			//errors.emplace_back("Expected bracketOpen", tempBegin);
 			return false;
 		}
 		tempStr   = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
 		tempBegin = tempEnd;
 
 		if (!lexBracketContent(tempStr, tempBegin, tempEnd, bracketContent, errors, bracketCount)) {
-			errors.emplace_back("Expected bracketContent", tempBegin);
+			//errors.emplace_back("Expected bracketContent", tempBegin);
 			return false;
 		}
 		tempStr   = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
 		tempBegin = tempEnd;
 
 		if (!lexBracketClose(tempStr, tempBegin, end, bracketClose, errors, bracketCount)) {
-			errors.emplace_back("Expected bracketClose", tempBegin);
+			//errors.emplace_back("Expected bracketClose", tempBegin);
 			return false;
 		}
 
@@ -439,7 +429,7 @@ namespace CMakeCompiler {
 	bool lexBracketOpen(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors, std::size_t& bracketCount) {
 		// '\\[' (<BracketCount>: '='*) '\\['
 		if (str.empty() || str[0] != '[') {
-			errors.emplace_back("Expected '['", begin);
+			//errors.emplace_back("Expected '['", begin);
 			return false;
 		}
 
@@ -448,7 +438,7 @@ namespace CMakeCompiler {
 			++bracketCount;
 
 		if (2 + bracketCount < str.size() || str[2 + bracketCount] != '[') {
-			errors.emplace_back("Expected '=' or '['", SourceRef { begin.m_Index + 2 + bracketCount, begin.m_Line, begin.m_Column + 2 + bracketCount });
+			//errors.emplace_back("Expected '=' or '['", SourceRef { begin.m_Index + 2 + bracketCount, begin.m_Line, begin.m_Column + 2 + bracketCount });
 			return false;
 		}
 
@@ -491,24 +481,24 @@ namespace CMakeCompiler {
 	bool lexBracketClose(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors, std::size_t bracketCount) {
 		// '\\]' \BracketCount '\\]'
 		if (str.empty() || str[0] != ']') {
-			errors.emplace_back("Expected ']'", begin);
+			//errors.emplace_back("Expected ']'", begin);
 			return false;
 		}
 
 		if (1 + bracketCount < str.size()) {
-			errors.emplace_back("Expected '='", SourceRef { begin.m_Index + 1, begin.m_Line, begin.m_Column + 1 });
+			//errors.emplace_back("Expected '='", SourceRef { begin.m_Index + 1, begin.m_Line, begin.m_Column + 1 });
 			return false;
 		}
 
 		for (std::size_t i = 0; i < bracketCount; ++i) {
 			if (str[1 + i] != '=') {
-				errors.emplace_back("Expected '='", SourceRef { begin.m_Index + 1 + i, begin.m_Line, begin.m_Column + 1 + i });
+				//errors.emplace_back("Expected '='", SourceRef { begin.m_Index + 1 + i, begin.m_Line, begin.m_Column + 1 + i });
 				return false;
 			}
 		}
 
 		if (2 + bracketCount < str.size() || str[2 + bracketCount] != ']') {
-			errors.emplace_back("Expected ']'", SourceRef { begin.m_Index + 2 + bracketCount, begin.m_Line, begin.m_Column + 2 + bracketCount });
+			//errors.emplace_back("Expected ']'", SourceRef { begin.m_Index + 2 + bracketCount, begin.m_Line, begin.m_Column + 2 + bracketCount });
 			return false;
 		}
 		end.m_Index  = begin.m_Index + 3 + bracketCount;
@@ -524,7 +514,7 @@ namespace CMakeCompiler {
 		SourceRef tempEnd        = begin;
 
 		if (tempStr.empty() || tempStr[0] != '"') {
-			errors.emplace_back("Expected '\"'", tempBegin);
+			//errors.emplace_back("Expected '\"'", tempBegin);
 			return false;
 		}
 		tempStr = tempStr.substr(1);
@@ -533,22 +523,22 @@ namespace CMakeCompiler {
 
 		while (true) {
 			LexNode quotedElement;
-			if (!lexQuotedArgument(tempStr, tempBegin, tempEnd, quotedElement, errors))
+			if (!lexQuotedElement(tempStr, tempBegin, tempEnd, quotedElement, errors))
 				break;
-			tempStr   = tempStr.substr(tempEnd.m_Index, tempBegin.m_Index);
+			tempStr   = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
 			tempBegin = tempEnd;
 			node.m_Children.push_back(std::move(quotedElement));
 		}
 
 		if (tempStr.empty() || tempStr[0] != '\"') {
-			errors.emplace_back("Expected '\"'", tempBegin);
+			//errors.emplace_back("Expected '\"'", tempBegin);
 			return false;
 		}
 		tempStr = tempStr.substr(1);
 		++tempBegin.m_Index;
 		++tempBegin.m_Column;
 
-		end = tempEnd;
+		end = tempBegin;
 
 		node.m_Type  = LexNodeType::QuotedArgument;
 		node.m_Begin = begin;
@@ -572,7 +562,7 @@ namespace CMakeCompiler {
 					continue;
 				}
 
-				if (str[0] == '"' || str[0] == '\\')
+				if (tempStr[0] == '"' || tempStr[0] == '\\')
 					break;
 
 				tempEnd.m_Index  = tempBegin.m_Index + 1;
@@ -581,6 +571,10 @@ namespace CMakeCompiler {
 				tempStr          = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
 				tempBegin        = tempEnd;
 			}
+
+			if ((tempEnd.m_Index - begin.m_Index) == 0)
+				return false;
+
 			end = tempEnd;
 
 			node.m_Type  = LexNodeType::QuotedElement;
@@ -593,7 +587,8 @@ namespace CMakeCompiler {
 		std::vector<LexError> tempErrors;
 		if (!lexEscapeSequence(str, begin, end, node, tempErrors))
 			if (!lexQuotedContinuation(str, begin, end, node, tempErrors))
-				variant1();
+				if (!variant1())
+					return false;
 		return true;
 	}
 
@@ -604,7 +599,7 @@ namespace CMakeCompiler {
 		SourceRef tempEnd        = begin;
 		LexNode tempNode;
 		if (tempStr.empty() || tempStr[0] != '\\') {
-			errors.emplace_back("Expected '\\'", tempBegin);
+			//errors.emplace_back("Expected '\\'", tempBegin);
 			return false;
 		}
 		tempStr = tempStr.substr(1);
@@ -612,7 +607,7 @@ namespace CMakeCompiler {
 		++tempBegin.m_Column;
 
 		if (!lexNewline(tempStr, tempBegin, tempEnd, tempNode, errors)) {
-			errors.emplace_back("Expected newline", tempBegin);
+			//errors.emplace_back("Expected newline", tempBegin);
 			return false;
 		}
 
@@ -640,7 +635,7 @@ namespace CMakeCompiler {
 			}
 
 			if (!hasElement) {
-				errors.emplace_back("Expected unquotedElement", begin);
+				//errors.emplace_back("Expected unquotedElement", begin);
 				return false;
 			}
 			end = tempEnd;
@@ -654,7 +649,7 @@ namespace CMakeCompiler {
 		if (!variant1()) {
 			// unqoutedLegacy
 			if (!lexUnquotedLegacy(str, begin, end, node, errors)) {
-				errors.emplace_back("Expected unquotedLegacy", begin);
+				//errors.emplace_back("Expected unquotedLegacy", begin);
 				return false;
 			}
 		}
@@ -694,7 +689,7 @@ namespace CMakeCompiler {
 			}
 
 			if (len == 0) {
-				errors.emplace_back("Expected text", begin);
+				//errors.emplace_back("Expected text", begin);
 				return false;
 			}
 
@@ -713,7 +708,7 @@ namespace CMakeCompiler {
 		// escapeSequence
 		if (!lexEscapeSequence(str, begin, end, node, tempErrors)) {
 			if (!variant1()) {
-				errors.emplace_back("Expected text or escapeSequence", begin);
+				//errors.emplace_back("Expected text or escapeSequence", begin);
 				return false;
 			}
 		}
@@ -721,7 +716,7 @@ namespace CMakeCompiler {
 	}
 
 	bool lexUnquotedLegacy(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors) {
-		errors.emplace_back("unqoutedLegacy isn't currently supported!", begin);
+		//errors.emplace_back("unqoutedLegacy isn't currently supported!", begin);
 		return false;
 	}
 
@@ -733,7 +728,7 @@ namespace CMakeCompiler {
 			if (!lexEscapeEncoded(str, begin, end, node, tempErrors)) {
 				// escapeSemicolon
 				if (!lexEscapeSemicolon(str, begin, end, node, errors)) {
-					errors.emplace_back("Expected escapeIdentity, escapeEncoded or escapeSemicolon");
+					//errors.emplace_back("Expected escapeIdentity, escapeEncoded or escapeSemicolon", begin);
 					return false;
 				}
 			}
@@ -744,12 +739,12 @@ namespace CMakeCompiler {
 	bool lexEscapeIdentity(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors) {
 		// '\\[^A-Za-z0-9;]'
 		if (str.empty() || str[0] != '\\') {
-			errors.emplace_back("Expected '\\'", begin);
+			//errors.emplace_back("Expected '\\'", begin);
 			return false;
 		}
 
 		if (1 < str.size() && (!std::isalnum(str[1]) && str[1] != ';')) {
-			errors.emplace_back("Expected A-Za-z0-9 or ';'", SourceRef { begin.m_Index + 1, begin.m_Line, begin.m_Column + 1 });
+			//errors.emplace_back("Expected A-Za-z0-9 or ';'", SourceRef { begin.m_Index + 1, begin.m_Line, begin.m_Column + 1 });
 			return false;
 		}
 
@@ -767,12 +762,12 @@ namespace CMakeCompiler {
 	bool lexEscapeEncoded(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors) {
 		// '\\t' | '\\r' | '\\n'
 		if (str.empty() || str[0] != '\\') {
-			errors.emplace_back("Expected '\\'", begin);
+			//errors.emplace_back("Expected '\\'", begin);
 			return false;
 		}
 
 		if (1 < str.size() && (str[1] != 't' && str[1] != 'r' && str[1] != 'n')) {
-			errors.emplace_back("Expected 't', 'r' or 'n'", SourceRef { begin.m_Index + 1, begin.m_Line, begin.m_Column + 1 });
+			//errors.emplace_back("Expected 't', 'r' or 'n'", SourceRef { begin.m_Index + 1, begin.m_Line, begin.m_Column + 1 });
 			return false;
 		}
 
@@ -790,12 +785,12 @@ namespace CMakeCompiler {
 	bool lexEscapeSemicolon(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors) {
 		// '\\;'
 		if (str.empty() || str[0] != '\\') {
-			errors.emplace_back("Expected '\\'", begin);
+			//errors.emplace_back("Expected '\\'", begin);
 			return false;
 		}
 
 		if (1 < str.size() && str[1] != ';') {
-			errors.emplace_back("Expected ';'", SourceRef { begin.m_Index + 1, begin.m_Line, begin.m_Column + 1 });
+			//errors.emplace_back("Expected ';'", SourceRef { begin.m_Index + 1, begin.m_Line, begin.m_Column + 1 });
 			return false;
 		}
 
@@ -813,7 +808,7 @@ namespace CMakeCompiler {
 	bool lexLineComment(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors) {
 		// '#(?!\\[=*\\[).*'
 		if (str.empty() || str[0] != '#') {
-			errors.emplace_back("Expected '#'", begin);
+			//errors.emplace_back("Expected '#'", begin);
 			return false;
 		}
 
@@ -843,7 +838,7 @@ namespace CMakeCompiler {
 		LexNode tempNode;
 
 		if (tempStr.empty() || tempStr[0] != '#') {
-			errors.emplace_back("Expected '#'", begin);
+			//errors.emplace_back("Expected '#'", begin);
 			return false;
 		}
 		++tempBegin.m_Index;
@@ -851,7 +846,7 @@ namespace CMakeCompiler {
 		tempStr = tempStr.substr(1);
 
 		if (!lexBracketArgument(tempStr, tempBegin, tempEnd, tempNode, errors)) {
-			errors.emplace_back("Expected bracketArgument", tempBegin);
+			//errors.emplace_back("Expected bracketArgument", tempBegin);
 			return false;
 		}
 
