@@ -20,7 +20,7 @@ end
 
 workspace("MMake")
 	configurations({ "Debug", "Release", "Dist" })
-if _OS == "macosx" then
+if _TARGET_OS == "macosx" then
 	platforms({ "x64" })
 else
 	platforms({ "x86", "x64" })
