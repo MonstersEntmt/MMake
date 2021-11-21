@@ -140,18 +140,14 @@ namespace MMake {
 		SourceRef end;
 		std::vector<LexError> errors;
 		Lex lex = lexString(R"(
-set(OUTER_OUTER_VAR "Hello, World!")
-function(${OUTER_$ENV{INNER}_VAR})
+FUNC()
 )",
 		                    begin,
 		                    end,
 		                    errors);
 		if (!errors.empty()) {
-			for (auto& error : errors) {
-				std::cout << "(";
-				printSourceRef(error.m_At);
-				std::cout << ") " << error.m_Message << "\n";
-			}
+			for (auto& error : errors)
+				printLexError(lex, error);
 			return;
 		}
 

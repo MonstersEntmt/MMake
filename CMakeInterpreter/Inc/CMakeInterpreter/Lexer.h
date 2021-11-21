@@ -51,6 +51,7 @@ namespace CMakeInterpreter {
 
 	struct Lex {
 	public:
+		std::string m_Source;
 		LexNode m_Root;
 	};
 
@@ -103,13 +104,14 @@ namespace CMakeInterpreter {
 
 	inline Lex lexString(std::string_view str, SourceRef begin, SourceRef& end, std::vector<LexError>& errors) {
 		Lex lex;
+		lex.m_Source = str;
 		std::vector<LexError> tempErrors;
-		auto result = lexFile(str, begin, end, lex.m_Root, tempErrors);
-		if (result == LexResult::Error) {
+		auto result = lexFile(lex.m_Source, begin, end, lex.m_Root, tempErrors);
+		if (result == LexResult::Error)
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken file", begin);
-		}
 		return lex;
 	}
-} // namespace CMakeCompiler
+
+	void printLexError(const Lex& lex, const LexError& error);
+} // namespace CMakeInterpreter

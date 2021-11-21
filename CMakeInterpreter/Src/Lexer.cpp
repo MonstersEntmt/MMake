@@ -1,5 +1,7 @@
 #include "CMakeInterpreter/Lexer.h"
 
+#include <iostream>
+#include <sstream>
 #include <utility>
 
 namespace CMakeInterpreter {
@@ -26,7 +28,6 @@ namespace CMakeInterpreter {
 			if (result == LexResult::Error) {
 				for (auto& error : tempErrors)
 					errors.push_back(std::move(error));
-				errors.emplace_back("Broken fileElement", tempBegin);
 				return LexResult::Error;
 			} else if (result == LexResult::Done) {
 				break;
@@ -58,7 +59,6 @@ namespace CMakeInterpreter {
 			if (result == LexResult::Error) {
 				for (auto& error : tempErrors)
 					errors.push_back(std::move(error));
-				errors.emplace_back("Broken commandInvocation", tempBegin);
 				return LexResult::Error;
 			} else if (result == LexResult::Skip) {
 				return LexResult::Skip;
@@ -71,7 +71,6 @@ namespace CMakeInterpreter {
 			if (result == LexResult::Error) {
 				for (auto& error : tempErrors)
 					errors.push_back(std::move(error));
-				errors.emplace_back("Broken lineEnding", tempBegin);
 				return LexResult::Error;
 			} else if (result == LexResult::Skip) {
 				for (auto& error : tempErrors)
@@ -103,7 +102,6 @@ namespace CMakeInterpreter {
 				} else if (result == LexResult::Error) {
 					for (auto& error : tempErrors)
 						errors.push_back(std::move(error));
-					errors.emplace_back("Broken bracketComment", begin);
 					return LexResult::Error;
 				}
 				tempErrors.clear();
@@ -116,7 +114,6 @@ namespace CMakeInterpreter {
 				} else if (result == LexResult::Error) {
 					for (auto& error : tempErrors)
 						errors.push_back(std::move(error));
-					errors.emplace_back("Broken bracketComment", begin);
 					return LexResult::Error;
 				}
 				break;
@@ -127,7 +124,6 @@ namespace CMakeInterpreter {
 			if (result == LexResult::Error) {
 				for (auto& error : tempErrors)
 					errors.push_back(std::move(error));
-				errors.emplace_back("Broken lineEnding", tempBegin);
 				return LexResult::Error;
 			} else if (result == LexResult::Skip) {
 				return LexResult::Done;
@@ -173,7 +169,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken lineComment", tempBegin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			tempStr        = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
@@ -185,7 +180,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken newline", tempBegin);
 			return LexResult::Error;
 		} else if (result == LexResult::Skip) {
 			if (hasLineComment) {
@@ -252,7 +246,6 @@ namespace CMakeInterpreter {
 			if (result == LexResult::Error) {
 				for (auto& error : tempErrors)
 					errors.push_back(std::move(error));
-				errors.emplace_back("Broken space", tempBegin);
 				return LexResult::Error;
 			} else if (result == LexResult::Skip) {
 				break;
@@ -267,7 +260,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken identifier", tempBegin);
 			return LexResult::Error;
 		} else if (result == LexResult::Skip) {
 			errors.emplace_back("Expected identifier", tempBegin);
@@ -284,7 +276,6 @@ namespace CMakeInterpreter {
 			if (result == LexResult::Error) {
 				for (auto& error : tempErrors)
 					errors.push_back(std::move(error));
-				errors.emplace_back("Broken space", tempBegin);
 				return LexResult::Error;
 			} else if (result == LexResult::Skip) {
 				break;
@@ -308,7 +299,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken arguments", tempBegin);
 			return LexResult::Error;
 		} else if (result == LexResult::Skip) {
 			errors.emplace_back("Expected arguments", tempBegin);
@@ -369,7 +359,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken argument", tempBegin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			tempStr   = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
@@ -384,7 +373,6 @@ namespace CMakeInterpreter {
 			if (result == LexResult::Error) {
 				for (auto& error : tempErrors)
 					errors.push_back(std::move(error));
-				errors.emplace_back("Broken separatedArguments", tempBegin);
 				return LexResult::Error;
 			} else if (result == LexResult::Skip) {
 				break;
@@ -420,7 +408,6 @@ namespace CMakeInterpreter {
 				if (result == LexResult::Error) {
 					for (auto& error : tempErrors)
 						errors.push_back(std::move(error));
-					errors.emplace_back("Broken separation", tempBegin);
 					return LexResult::Error;
 				} else if (result == LexResult::Skip) {
 					break;
@@ -439,7 +426,6 @@ namespace CMakeInterpreter {
 			if (result == LexResult::Error) {
 				for (auto& error : tempErrors)
 					errors.push_back(std::move(error));
-				errors.emplace_back("Broken argument", tempBegin);
 				return LexResult::Error;
 			} else if (result == LexResult::Success) {
 				node = std::move(tempArgument);
@@ -467,7 +453,6 @@ namespace CMakeInterpreter {
 				if (result == LexResult::Error) {
 					for (auto& error : tempErrors)
 						errors.push_back(std::move(error));
-					errors.emplace_back("Broken separation", tempBegin);
 					return LexResult::Error;
 				} else if (result == LexResult::Skip) {
 					break;
@@ -495,7 +480,6 @@ namespace CMakeInterpreter {
 			if (result == LexResult::Error) {
 				for (auto& error : tempErrors)
 					errors.push_back(std::move(error));
-				errors.emplace_back("Broken arguments", tempBegin);
 				return LexResult::Error;
 			} else if (result == LexResult::Skip) {
 				errors.emplace_back("Expected arguments", tempBegin);
@@ -542,7 +526,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken space", begin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			return LexResult::Success;
@@ -554,7 +537,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken lineEnding", begin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			return LexResult::Success;
@@ -571,7 +553,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken bracketArgument", begin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			return LexResult::Success;
@@ -582,7 +563,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken quotedArgument", begin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			return LexResult::Success;
@@ -593,7 +573,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken UnquotedArgument", begin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			return LexResult::Success;
@@ -618,7 +597,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken bracketOpen", tempBegin);
 			return LexResult::Error;
 		} else if (result == LexResult::Skip) {
 			return LexResult::Skip;
@@ -632,7 +610,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken bracketContent", tempBegin);
 			return LexResult::Error;
 		} else if (result == LexResult::Skip) {
 			errors.emplace_back("Expected bracketContent", tempBegin);
@@ -647,7 +624,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken bracketClose", tempBegin);
 			return LexResult::Error;
 		} else if (result == LexResult::Skip) {
 			errors.emplace_back("Expected bracketClose", tempBegin);
@@ -710,7 +686,6 @@ namespace CMakeInterpreter {
 				if (result == LexResult::Error) {
 					for (auto& error : tempErrors)
 						errors.push_back(std::move(error));
-					errors.emplace_back("Broken newline", tempBegin);
 					return LexResult::Error;
 				} else if (result == LexResult::Skip) {
 				}
@@ -776,7 +751,6 @@ namespace CMakeInterpreter {
 			if (result == LexResult::Error) {
 				for (auto& error : tempErrors)
 					errors.push_back(std::move(error));
-				errors.emplace_back("Broken quotedElement", tempBegin);
 				return LexResult::Error;
 			} else if (result == LexResult::Skip) {
 				break;
@@ -821,7 +795,6 @@ namespace CMakeInterpreter {
 				if (result == LexResult::Error) {
 					for (auto& error : tempErrors)
 						errors.push_back(std::move(error));
-					errors.emplace_back("Broken newline", tempBegin);
 					return LexResult::Error;
 				} else if (result == LexResult::Success) {
 					tempErrors.clear();
@@ -859,7 +832,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken escapeSequence", begin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			return LexResult::Success;
@@ -870,7 +842,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken quotedContinuation", begin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			return LexResult::Success;
@@ -906,7 +877,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken newline", tempBegin);
 			return LexResult::Error;
 		} else if (result == LexResult::Skip) {
 			errors.emplace_back("Expected newline", tempBegin);
@@ -934,7 +904,6 @@ namespace CMakeInterpreter {
 				if (result == LexResult::Error) {
 					for (auto& error : tempErrors)
 						errors.push_back(std::move(error));
-					errors.emplace_back("Broken unquotedElement", tempBegin);
 					return LexResult::Error;
 				} else if (result == LexResult::Skip) {
 					break;
@@ -982,7 +951,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken unquotedLegacy", begin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			return LexResult::Success;
@@ -1044,7 +1012,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken escapeSequence", begin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			return LexResult::Success;
@@ -1135,7 +1102,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken escapeEncoded", begin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			return LexResult::Success;
@@ -1146,7 +1112,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken escapeSemicolon", begin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			return LexResult::Success;
@@ -1156,7 +1121,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken escapeIdentity", begin);
 			return LexResult::Error;
 		} else if (result == LexResult::Success) {
 			return LexResult::Success;
@@ -1272,7 +1236,6 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error) {
 			for (auto& error : tempErrors)
 				errors.push_back(std::move(error));
-			errors.emplace_back("Broken bracketArgument", tempBegin);
 			return LexResult::Error;
 		} else if (result == LexResult::Skip) {
 			return LexResult::Skip;
@@ -1280,4 +1243,19 @@ namespace CMakeInterpreter {
 
 		return LexResult::Success;
 	}
-} // namespace CMakeCompiler
+
+	void printLexError(const Lex& lex, const LexError& error) {
+		std::ostringstream str;
+		str << "CMake Lex Error: " << error.m_Message << "\n";
+		auto lineBegin = lex.m_Source.find_last_of('\n', error.m_At.m_Index);
+		if (lineBegin >= lex.m_Source.size())
+			lineBegin = 0;
+		auto lineEnd             = lex.m_Source.find_first_of('\n', error.m_At.m_Index);
+		std::string_view strview = lex.m_Source;
+		std::string lineNr       = std::to_string(error.m_At.m_Line) + ": ";
+		str << lineNr << strview.substr(lineBegin + 1, lineEnd - lineBegin - 1);
+		str << '\n'
+		    << std::string(lineNr.size() + error.m_At.m_Column - 1, ' ') << "^\n";
+		std::cerr << str.str();
+	}
+} // namespace CMakeInterpreter
