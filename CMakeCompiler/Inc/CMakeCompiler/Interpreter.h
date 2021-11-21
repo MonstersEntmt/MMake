@@ -23,7 +23,7 @@ namespace CMakeCompiler {
 		bool hasNext();
 		void next();
 
-		void evalVariableRefs(std::string& str, bool allowLegacy = false);
+		void evalVariableRefs(std::string& str);
 
 		FunctionCallback getFunction(const std::string& function);
 		std::string_view getVariable(const std::string& variable);

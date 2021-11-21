@@ -924,6 +924,7 @@ namespace CMakeCompiler {
 			SourceRef tempBegin      = begin;
 			SourceRef tempEnd        = begin;
 			std::vector<LexError> tempErrors;
+			LexNode outNode;
 
 			bool hasElement = false;
 
@@ -941,7 +942,8 @@ namespace CMakeCompiler {
 					hasElement = true;
 					tempStr    = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
 					tempBegin  = tempEnd;
-					node.m_Children.push_back(std::move(tempNode));
+					if (tempNode.m_Type != LexNodeType::Unknown)
+						outNode.m_Children.push_back(std::move(tempNode));
 				}
 				tempErrors.clear();
 			}
@@ -949,11 +951,21 @@ namespace CMakeCompiler {
 			if (!hasElement)
 				return LexResult::Skip;
 
+			if (tempStr[0] != ')') {
+				SourceRef fakeTempEnd = tempEnd;
+				LexNode tempNode;
+				auto result = lexSeparation(tempStr, tempBegin, fakeTempEnd, tempNode, tempErrors);
+				if (result == LexResult::Skip)
+					return LexResult::Skip;
+			}
+
 			end = tempEnd;
 
-			node.m_Type  = LexNodeType::UnquotedArgument;
-			node.m_Begin = begin;
-			node.m_End   = end;
+			outNode.m_Type  = LexNodeType::UnquotedArgument;
+			outNode.m_Begin = begin;
+			outNode.m_End   = end;
+
+			node = std::move(outNode);
 			return LexResult::Success;
 		};
 
@@ -1049,8 +1061,71 @@ namespace CMakeCompiler {
 	}
 
 	LexResult lexUnquotedLegacy(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors) {
-		errors.emplace_back("unqoutedLegacy isn't currently supported!", begin);
-		return LexResult::Skip;
+		if (str.empty() || str[0] == '"')
+			return LexResult::Skip;
+
+		bool insideString = false;
+
+		bool escaped    = false;
+		bool breakOut   = false;
+		std::size_t len = 0;
+		while (len < str.size()) {
+			switch (str[len]) {
+			case '\\':
+				escaped = true;
+				++len;
+				break;
+			case '"':
+				if (!escaped)
+					insideString = !insideString;
+				++len;
+				break;
+			case '$':
+				++len;
+				if (len >= str.size())
+					break;
+
+				if (!escaped) {
+					if (str[len] == '(') {
+						++len;
+						while (len < str.size()) {
+							if (str[len] == ')')
+								break;
+							++len;
+						}
+						++len;
+					}
+				}
+				break;
+			case ')':
+				[[fallthrough]];
+			case '\n':
+				breakOut = true;
+				break;
+			case ' ':
+				if (!escaped && !insideString) {
+					breakOut = true;
+					break;
+				}
+				++len;
+				break;
+			default:
+				escaped = false;
+				++len;
+			}
+
+			if (breakOut)
+				break;
+		}
+		end.m_Index  = begin.m_Index + len;
+		end.m_Line   = begin.m_Line;
+		end.m_Column = begin.m_Column + len;
+
+		node.m_Type  = LexNodeType::UnquotedLegacy;
+		node.m_Begin = begin;
+		node.m_End   = end;
+		node.m_Str   = str.substr(0, end.m_Index - begin.m_Index);
+		return LexResult::Success;
 	}
 
 	LexResult lexEscapeSequence(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors) {

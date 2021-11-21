@@ -140,17 +140,9 @@ namespace MMake {
 		SourceRef end;
 		std::vector<LexError> errors;
 		Lex lex = lexString(R"(
-set(SOURCES
-	[[${VAR}]]
-	b.cpp
-	c.cpp
-	d.cpp)
-
-function("${SOURCES}" $(SOURCES))
-
-unset(SOURCES)
-
-function(${SOURCES})
+set(INNER OUTER)
+set(OUTER_OUTER_VAR "Hello, World!")
+function(${OUTER_${INNER}_VAR})
 )",
 		                    begin,
 		                    end,

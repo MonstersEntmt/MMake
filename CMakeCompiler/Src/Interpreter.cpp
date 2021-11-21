@@ -162,13 +162,16 @@ namespace CMakeCompiler {
 					}
 				}
 
-				evalVariableRefs(str, true);
+				evalVariableRefs(str);
 				args += str;
 				break;
 			}
-			case LexNodeType::UnquotedLegacy:
-				runtimeError("UnquotedLegacy isn't supported yet", argument);
+			case LexNodeType::UnquotedLegacy: {
+				std::string str = std::string { argument.m_Str };
+				evalVariableRefs(str);
+				args += str;
 				break;
+			}
 			default:
 				runtimeError("Unexpected argument type", argument);
 				return;
@@ -179,7 +182,7 @@ namespace CMakeCompiler {
 		++m_CurrentCommand;
 	}
 
-	void InterpreterState::evalVariableRefs(std::string& str, bool allowLegacy) {
+	void InterpreterState::evalVariableRefs(std::string& str) {
 		for (std::size_t i = 0; i < str.size(); ++i) {
 			if (str[i] == '$') {
 				if (++i >= str.size())
@@ -189,22 +192,6 @@ namespace CMakeCompiler {
 					while (i + len < str.size() && str[i + len] != '}')
 						++len;
 					if (str[i + len] == '}') {
-						std::string variableName = str.substr(i + 1, len - 1);
-
-						auto value = getVariable(variableName);
-						if (value.empty()) {
-							str.erase(i - 1, len + 2);
-							i -= 2;
-						} else {
-							str.replace(i - 1, len + 2, value);
-							i += value.size();
-						}
-					}
-				} else if (allowLegacy && str[i] == '(') {
-					std::size_t len = 1;
-					while (i + len < str.size() && str[i + len] != ')')
-						++len;
-					if (str[i + len] == ')') {
 						std::string variableName = str.substr(i + 1, len - 1);
 
 						auto value = getVariable(variableName);
