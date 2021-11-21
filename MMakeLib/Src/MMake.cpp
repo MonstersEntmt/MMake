@@ -3,9 +3,9 @@
 #include <CommonCLI/Colors.h>
 #include <Premake/Defines.h>
 
-#ifdef MMAKE_CMAKE_COMPILER
-	#include <CMakeCompiler/Lexer.h>
-	#include <CMakeCompiler/Interpreter.h>
+#ifdef MMAKE_CMAKE_INTERPRETER
+	#include <CMakeInterpreter/Lexer.h>
+	#include <CMakeInterpreter/Interpreter.h>
 #endif
 
 #if PREMAKE_IS_CONFIG_DEBUG
@@ -61,9 +61,9 @@ namespace MMake {
 		piccolo_freeEngine(engine);
 	}
 
-#ifdef MMAKE_CMAKE_COMPILER
-	static void printLexNodeType(CMakeCompiler::LexNodeType type) {
-		using namespace CMakeCompiler;
+#ifdef MMAKE_CMAKE_INTERPRETER
+	static void printLexNodeType(CMakeInterpreter::LexNodeType type) {
+		using namespace CMakeInterpreter;
 		switch (type) {
 		case LexNodeType::File:
 			std::cout << "File";
@@ -113,11 +113,11 @@ namespace MMake {
 		}
 	}
 
-	static void printSourceRef(CMakeCompiler::SourceRef sourceRef) {
+	static void printSourceRef(CMakeInterpreter::SourceRef sourceRef) {
 		std::cout << sourceRef.m_Index << ": " << sourceRef.m_Line << ", " << sourceRef.m_Column;
 	}
 
-	static void printLexNode(const CMakeCompiler::LexNode& node, std::size_t tabs = 0) {
+	static void printLexNode(const CMakeInterpreter::LexNode& node, std::size_t tabs = 0) {
 		std::cout << std::string(tabs, ' ');
 		printLexNodeType(node.m_Type);
 		std::cout << ": '" << node.m_Str << "' (";
@@ -129,20 +129,19 @@ namespace MMake {
 			printLexNode(child, tabs + 1);
 	}
 
-	static void printLex(const CMakeCompiler::Lex& lex) {
+	static void printLex(const CMakeInterpreter::Lex& lex) {
 		std::cout << "Lex:\n";
 		printLexNode(lex.m_Root, 1);
 	}
 
 	void runCMake() {
-		using namespace CMakeCompiler;
+		using namespace CMakeInterpreter;
 		SourceRef begin { 0, 1, 1 };
 		SourceRef end;
 		std::vector<LexError> errors;
 		Lex lex = lexString(R"(
-set(INNER OUTER)
 set(OUTER_OUTER_VAR "Hello, World!")
-function(${OUTER_${INNER}_VAR})
+function(${OUTER_$ENV{INNER}_VAR})
 )",
 		                    begin,
 		                    end,
@@ -155,6 +154,7 @@ function(${OUTER_${INNER}_VAR})
 			}
 			return;
 		}
+
 		InterpreterState state { &lex };
 		state.m_Functions.insert({ "set", [](InterpreterState& state, std::string_view args) {
 			                          auto variableNameEnd = args.find_first_of(';');

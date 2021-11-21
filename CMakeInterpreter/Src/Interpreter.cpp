@@ -1,9 +1,9 @@
-#include "CMakeCompiler/Interpreter.h"
-#include "CMakeCompiler/Lexer.h"
+#include "CMakeInterpreter/Interpreter.h"
+#include "CMakeInterpreter/Lexer.h"
 
 #include <iostream>
 
-namespace CMakeCompiler {
+namespace CMakeInterpreter {
 	std::vector<std::string> splitArguments(std::string_view args) {
 		std::vector<std::string> splittedArgs;
 		std::size_t offset = 0;
@@ -183,27 +183,43 @@ namespace CMakeCompiler {
 	}
 
 	void InterpreterState::evalVariableRefs(std::string& str) {
-		for (std::size_t i = 0; i < str.size(); ++i) {
+		for (std::size_t i = str.size() - 1; i != ~0ULL; --i) {
 			if (str[i] == '$') {
-				if (++i >= str.size())
-					break;
-				if (str[i] == '{') {
-					std::size_t len = 1;
+				std::size_t start = i;
+				++i;
+
+				std::size_t len = 0;
+				while (i + len < str.size() && str[i + len] != '{')
+					++len;
+				std::string type = str.substr(i, len);
+				i += len;
+				if (i < str.size() && str[i] == '{') {
+					len = 0;
 					while (i + len < str.size() && str[i + len] != '}')
 						++len;
 					if (str[i + len] == '}') {
 						std::string variableName = str.substr(i + 1, len - 1);
+						i += len;
 
-						auto value = getVariable(variableName);
-						if (value.empty()) {
-							str.erase(i - 1, len + 2);
-							i -= 2;
+						std::string_view value;
+						if (type == "ENV") {
+							auto result = std::getenv(variableName.c_str());
+							if (result)
+								value = result;
+						} else if (type == "CACHE") {
+							value = getCachedVariable(variableName);
 						} else {
-							str.replace(i - 1, len + 2, value);
-							i += value.size();
+							value = getVariable(variableName);
 						}
+
+						if (value.empty())
+							str.erase(start, 1 + i - start);
+						else
+							str.replace(start, 1 + i - start, value);
 					}
 				}
+
+				i = start;
 			}
 		}
 	}
@@ -222,7 +238,14 @@ namespace CMakeCompiler {
 		return {};
 	}
 
-	static void printSourceRef(CMakeCompiler::SourceRef sourceRef) {
+	std::string_view InterpreterState::getCachedVariable(const std::string& variable) {
+		auto itr = m_CachedVariables.find(variable);
+		if (itr != m_CachedVariables.end())
+			return itr->second;
+		return {};
+	}
+
+	static void printSourceRef(SourceRef sourceRef) {
 		std::cout << sourceRef.m_Index << ": " << sourceRef.m_Line << ", " << sourceRef.m_Column;
 	}
 
@@ -240,4 +263,4 @@ namespace CMakeCompiler {
 		std::cerr << ")\n";
 		m_Borked = true;
 	}
-} // namespace CMakeCompiler
+} // namespace CMakeInterpreter

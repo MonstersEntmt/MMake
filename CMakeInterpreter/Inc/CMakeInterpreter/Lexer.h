@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-namespace CMakeCompiler {
+namespace CMakeInterpreter {
 	struct SourceRef {
 	public:
 		SourceRef() = default;

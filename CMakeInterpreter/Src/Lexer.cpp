@@ -1,8 +1,8 @@
-#include "CMakeCompiler/Lexer.h"
+#include "CMakeInterpreter/Lexer.h"
 
 #include <utility>
 
-namespace CMakeCompiler {
+namespace CMakeInterpreter {
 	SourceRef::SourceRef(std::size_t index, std::size_t line, std::size_t column)
 	    : m_Index(index), m_Line(line), m_Column(column) { }
 

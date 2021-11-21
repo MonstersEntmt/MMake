@@ -1,18 +1,18 @@
 -- This file is only temporary until the MMake can generate a build system for itself.
 -- Then using MMake it will pregenerate Visual Studio solution and gnu make files as a fallback.
 newoption({
-	trigger = "no-cmake-compiler",
-	description = "Disables CMake Compiler, making MMake unable to run CMake scripts"
+	trigger = "no-cmake-interpreter",
+	description = "Disables CMake Interpreter, making MMake unable to run CMake scripts"
 })
 newoption({
 	trigger = "no-tests",
 	description = "Disables Tests"
 })
 
-local integrateCMakeCompiler = true
+local integrateCMakeInterpreter = true
 local buildTests = true
-if _OPTIONS["no-cmake-compiler"] then
-	integrateCMakeCompiler = false
+if _OPTIONS["no-cmake-interpreter"] then
+	integrateCMakeInterpreter = false
 end
 if _OPTIONS["no-tests"] then
 	buildTests = false
@@ -124,9 +124,9 @@ end
 		})
 
 	group("Libs")
-	if integrateCMakeCompiler then
-		project("CMakeCompiler")
-			location("%{wks.location}/CMakeCompiler/")
+	if integrateCMakeInterpreter then
+		project("CMakeInterpreter")
+			location("%{wks.location}/CMakeInterpreter/")
 			kind("StaticLib")
 
 			includedirs({ "%{prj.location}/Inc/" })
@@ -143,10 +143,10 @@ end
 
 		includedirs({ "%{prj.location}/Inc/" })
 
-		if integrateCMakeCompiler then
-			defines({ "MMAKE_CMAKE_COMPILER" })
-			links({ "CMakeCompiler" })
-			sysincludedirs({ "%{wks.location}/CMakeCompiler/Inc/" })
+		if integrateCMakeInterpreter then
+			defines({ "MMAKE_CMAKE_INTERPRETER" })
+			links({ "CMakeInterpreter" })
+			sysincludedirs({ "%{wks.location}/CMakeInterpreter/Inc/" })
 		end
 
 		links({
@@ -170,9 +170,9 @@ end
 
 		includedirs({ "%{prj.location}/Src/" })
 
-		if integrateCMakeCompiler then
-			defines({ "MMAKE_CMAKE_COMPILER" })
-			sysincludedirs({ "%{wks.location}/CMakeCompiler/Inc/" })
+		if integrateCMakeInterpreter then
+			defines({ "MMAKE_CMAKE_INTERPRETER" })
+			sysincludedirs({ "%{wks.location}/CMakeInterpreter/Inc/" })
 		end
 		links({
 			"MMakeLib",

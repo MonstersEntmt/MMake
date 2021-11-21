@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
 		return 1;
 
 		//MMake::run();
-#ifdef MMAKE_CMAKE_COMPILER
+#ifdef MMAKE_CMAKE_INTERPRETER
 	MMake::runCMake();
 #endif
 	return 0;
