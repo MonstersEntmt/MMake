@@ -23,18 +23,15 @@ namespace CMakeCompiler {
 	};
 
 	enum class LexNodeType {
+		Unknown,
 		File,
 		FileElement,
-		LineEnding,
 		CommandInvocation,
 		Identifier,
 		Arguments,
-		Argument,
-		BracketArgument,
 		BracketContent,
 		QuotedArgument,
 		QuotedElement,
-		QuotedContinuation,
 		UnquotedArgument,
 		UnquotedElement,
 		UnquotedLegacy,
@@ -45,7 +42,7 @@ namespace CMakeCompiler {
 
 	struct LexNode {
 	public:
-		LexNodeType m_Type;
+		LexNodeType m_Type = LexNodeType::Unknown;
 		SourceRef m_Begin;
 		SourceRef m_End;
 		std::string_view m_Str;

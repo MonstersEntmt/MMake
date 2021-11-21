@@ -20,7 +20,7 @@
 file:        fileElement*
 fileElement: commandInvocation lineEnding
              (bracketComment | space)* lineEnding
-lineEnding:  lineComment? newline
+lineEnding?: lineComment? newline
 space?:      (' ' | '\t')+
 newline?:    '\n'
 
@@ -37,9 +37,9 @@ argument: bracketArgument
           unquotedArgument
 
 bracketArgument: bracketOpen bracketContent bracketClose
-bracketOpen:     '\\[' (<BracketCount>: '='*) '\\['
+bracketOpen?:    '\\[' (<BracketCount>: '='*) '\\['
 bracketContent:  ('.' | newline)*
-bracketClose:    '\\]' \BracketCount '\\]'
+bracketClose?:   '\\]' \BracketCount '\\]'
 
 quotedArgument:      '"' quotedElement* '"'
 quotedElement:       escapeSequence
@@ -53,9 +53,9 @@ unqoutedElement:  escapeSequence
                   '(?:[^\\s()#"\\\\])+'
 unquotedLegacy:   <TODO: IDK WHAT THIS IS FUCK CMAKE DOCS>
 
-escapeSequence:  escapeIdentity
-                 escapeEncoded
+escapeSequence:  escapeEncoded
                  escapeSemicolon
+                 escapeIdentity
 escapeIdentity:  '\\[^A-Za-z0-9;]'
 escapeEncoded:   '\\t' | '\\r' | '\\n'
 escapeSemicolon: '\\;'

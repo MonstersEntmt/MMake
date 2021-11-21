@@ -5,6 +5,7 @@
 
 #ifdef MMAKE_CMAKE_COMPILER
 	#include <CMakeCompiler/Lexer.h>
+	#include <CMakeCompiler/Interpreter.h>
 #endif
 
 #if PREMAKE_IS_CONFIG_DEBUG
@@ -70,9 +71,6 @@ namespace MMake {
 		case LexNodeType::FileElement:
 			std::cout << "FileElement";
 			break;
-		case LexNodeType::LineEnding:
-			std::cout << "LineEnding";
-			break;
 		case LexNodeType::CommandInvocation:
 			std::cout << "CommandInvocation";
 			break;
@@ -82,12 +80,6 @@ namespace MMake {
 		case LexNodeType::Arguments:
 			std::cout << "Arguments";
 			break;
-		case LexNodeType::Argument:
-			std::cout << "Argument";
-			break;
-		case LexNodeType::BracketArgument:
-			std::cout << "BracketArgument";
-			break;
 		case LexNodeType::BracketContent:
 			std::cout << "BracketContent";
 			break;
@@ -96,9 +88,6 @@ namespace MMake {
 			break;
 		case LexNodeType::QuotedElement:
 			std::cout << "QuotedElement";
-			break;
-		case LexNodeType::QuotedContinuation:
-			std::cout << "QuotedContinuation";
 			break;
 		case LexNodeType::UnquotedArgument:
 			std::cout << "UnquotedArgument";
@@ -151,6 +140,17 @@ namespace MMake {
 		SourceRef end;
 		std::vector<LexError> errors;
 		Lex lex = lexString(R"(
+set(SOURCES
+	[[${VAR}]]
+	b.cpp
+	c.cpp
+	d.cpp)
+
+function("${SOURCES}" $(SOURCES))
+
+unset(SOURCES)
+
+function(${SOURCES})
 )",
 		                    begin,
 		                    end,
@@ -163,7 +163,40 @@ namespace MMake {
 			}
 			return;
 		}
-		printLex(lex);
+		InterpreterState state { &lex };
+		state.m_Functions.insert({ "set", [](InterpreterState& state, std::string_view args) {
+			                          auto variableNameEnd = args.find_first_of(';');
+			                          if (variableNameEnd >= args.size() - 1) {
+				                          state.runtimeError("set requires multiple arguments");
+				                          return;
+			                          }
+
+			                          std::string_view variableName = args.substr(0, variableNameEnd);
+			                          state.m_Variables.insert({ std::string { variableName }, std::string { args.substr(variableNameEnd + 1) } });
+		                          } });
+		state.m_Functions.insert({ "unset", [](InterpreterState& state, std::string_view args) {
+			                          auto variableNameEnd = args.find_first_of(';');
+
+			                          auto itr = state.m_Variables.find(std::string { args.substr(0, variableNameEnd) });
+			                          if (itr != state.m_Variables.end())
+				                          state.m_Variables.erase(itr);
+		                          } });
+		state.m_Functions.insert({ "function", [](InterpreterState& state, std::string_view args) {
+			                          std::vector<std::string> splittedArgs = splitArguments(args);
+
+			                          std::cout << "function(";
+			                          bool comma = false;
+			                          for (auto& arg : splittedArgs) {
+				                          if (comma)
+					                          std::cout << ", ";
+				                          comma = true;
+				                          std::cout << "\"" << arg << "\"";
+			                          }
+			                          std::cout << ")\n";
+		                          } });
+		while (state.hasNext()) {
+			state.next();
+		}
 	}
 #endif
 } // namespace MMake
