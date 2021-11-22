@@ -68,9 +68,6 @@ namespace MMake {
 		case LexNodeType::File:
 			std::cout << "File";
 			break;
-		case LexNodeType::FileElement:
-			std::cout << "FileElement";
-			break;
 		case LexNodeType::CommandInvocation:
 			std::cout << "CommandInvocation";
 			break;
@@ -140,7 +137,20 @@ namespace MMake {
 		SourceRef end;
 		std::vector<LexError> errors;
 		Lex lex = lexString(R"(
-function(${VAR${HE}})
+function(test_func)
+	function(another_func)
+		message("Inner inner func")
+	endfunction()
+	set(VAR "Hello")
+	set(OUTER_VAR "Test" PARENT_SCOPE)
+	message("Test" ${VAR} ${OUTER_VAR})
+	another_func()
+endfunction()
+
+message("Start")
+test_func()
+message("End" ${VAR} ${OUTER_VAR})
+another_func()
 )",
 		                    begin,
 		                    end,
@@ -152,36 +162,7 @@ function(${VAR${HE}})
 		}
 
 		InterpreterState state { &lex };
-		state.m_Functions.insert({ "set", [](InterpreterState& state, std::string_view args) {
-			                          auto variableNameEnd = args.find_first_of(';');
-			                          if (variableNameEnd >= args.size() - 1) {
-				                          state.runtimeError("set requires multiple arguments");
-				                          return;
-			                          }
-
-			                          std::string_view variableName = args.substr(0, variableNameEnd);
-			                          state.m_Variables.insert({ std::string { variableName }, std::string { args.substr(variableNameEnd + 1) } });
-		                          } });
-		state.m_Functions.insert({ "unset", [](InterpreterState& state, std::string_view args) {
-			                          auto variableNameEnd = args.find_first_of(';');
-
-			                          auto itr = state.m_Variables.find(std::string { args.substr(0, variableNameEnd) });
-			                          if (itr != state.m_Variables.end())
-				                          state.m_Variables.erase(itr);
-		                          } });
-		state.m_Functions.insert({ "function", [](InterpreterState& state, std::string_view args) {
-			                          std::vector<std::string> splittedArgs = splitArguments(args);
-
-			                          std::cout << "function(";
-			                          bool comma = false;
-			                          for (auto& arg : splittedArgs) {
-				                          if (comma)
-					                          std::cout << ", ";
-				                          comma = true;
-				                          std::cout << "\"" << arg << "\"";
-			                          }
-			                          std::cout << ")\n";
-		                          } });
+		state.addDefaultFunctions();
 		while (state.hasNext()) {
 			state.next();
 		}

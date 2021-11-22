@@ -42,9 +42,178 @@ namespace CMakeInterpreter {
 			splittedArgs.push_back(std::string { args.substr(offset) });
 		return splittedArgs;
 	}
+	
+	void cmake_set(InterpreterState& state, std::string_view args) {
+		auto variableNameEnd = args.find_first_of(';');
+		if (variableNameEnd >= args.size() - 1) {
+			state.runtimeError("set requires multiple arguments");
+			return;
+		}
 
+		std::string_view variableName = args.substr(0, variableNameEnd);
+		auto valueStart = variableNameEnd + 1;
+		auto valueEnd = args.rfind("PARENT_SCOPE");
+		
+		state.addVariable(variableName, args.substr(valueStart, valueEnd - valueStart), valueEnd < args.size());
+	}
+	
+	void cmake_unset(InterpreterState& state, std::string_view args) {
+		auto variableNameEnd = args.find_first_of(';');
+		state.removeVariable(args.substr(0, variableNameEnd));
+	}
+	
+	void cmake_function_callback(std::size_t startLine, std::size_t endLine, InterpreterState& state, std::string_view args) {
+		auto entry = state.m_CurrentCommand;
+		state.m_CurrentCommand = startLine;
+		state.startScope();
+		while (state.m_CurrentCommand <= endLine && state.hasNext()) {
+			state.next();
+		}
+		state.endScope(),
+		state.m_CurrentCommand = entry;
+	}
+	
+	void cmake_function(InterpreterState& state, std::string_view args) {
+		std::string_view functionName = args.substr(0,  args.find_first_of(';'));
+		std::size_t start = state.m_CurrentCommand + 1;
+		std::size_t end = start;
+		std::size_t layers = 1;
+		for (; end < state.m_Lex->m_Root.m_Children.size(); ++end) {
+			auto& commandInvocation = state.m_Lex->m_Root.m_Children[end];
+			if (commandInvocation.m_Type != LexNodeType::CommandInvocation)
+				continue;
+			
+			auto& commandInvocationChildren = commandInvocation.m_Children;
+			if (commandInvocationChildren.size() < 2)
+				continue;
+
+			auto& identifier = commandInvocationChildren[0];
+			if (identifier.m_Type != LexNodeType::Identifier)
+				continue;
+			
+			if (identifier.m_Str == "function")
+				++layers;
+			
+			if (identifier.m_Str == "endfunction")
+				if (--layers == 0)
+					break;
+		}
+		
+		state.addFunction(functionName, cmake_function_callback, start, end - 1);
+		state.m_CurrentCommand = end;
+	}
+	
+	void cmake_endfunction(InterpreterState& state, std::string_view args) {}
+	
+	void cmake_message(InterpreterState& state, std::string_view args) {
+		std::cout << args << std::endl;
+	}
+	
 	InterpreterState::InterpreterState(Lex* lex)
-	    : m_Lex(lex) { }
+	    : m_Lex(lex) {
+		startScope();
+	}
+
+	void InterpreterState::addDefaultFunctions() {
+		addFunction("set", &cmake_set);
+		addFunction("unset", &cmake_unset);
+		addFunction("function", &cmake_function);
+		addFunction("endfunction", &cmake_endfunction);
+		addFunction("message", &cmake_message);
+	}
+	
+	void InterpreterState::addBoundFunction(std::string_view name, FunctionCallback callback) {
+		if (m_Functions.empty())
+			m_Functions.push_back({});
+		
+		auto& funcs = m_Functions[m_Functions.size() - 1];
+		funcs.insert({ std::string{ name }, callback });
+	}
+	
+	void InterpreterState::removeFunction(std::string_view name) {
+		std::string nm = std::string{ name };
+		for (auto itr = m_Functions.rbegin(); itr != m_Functions.rend(); ++itr) {
+			auto& functions = *itr;
+			auto func = functions.find(nm);
+			if (func != functions.end()) {
+				functions.erase(func);
+				return;
+			}
+		}
+	}
+	
+	void InterpreterState::addVariable(std::string_view name, std::string_view value, bool parent) {
+		if (m_Variables.empty())
+			m_Variables.push_back({});
+		
+		if (parent && m_Variables.size() < 2)
+			return;
+		
+		auto& vars = m_Variables[m_Variables.size() - (parent ? 2 : 1)];
+		vars.insert({ std::string{ name }, std::string{ value } });
+	}
+	
+	void InterpreterState::removeVariable(std::string_view name) {
+		std::string nm = std::string{ name };
+		for (auto itr = m_Variables.rbegin(); itr != m_Variables.rend(); ++itr) {
+			auto& variables = *itr;
+			auto var = variables.find(nm);
+			if (var != variables.end()) {
+				variables.erase(var);
+				return;
+			}
+		}
+	}
+	
+	void InterpreterState::addCachedVariable(std::string_view name, std::string_view value, bool overwrite) {
+		if (overwrite)
+			m_CachedVariables.insert_or_assign(std::string { name }, std::string { value });
+		else
+			m_CachedVariables.insert({ std::string { name }, std::string { value } });
+	}
+
+	void InterpreterState::removeCachedVariable(std::string_view name) {
+		auto itr = m_CachedVariables.find(std::string { name });
+		if (itr != m_CachedVariables.end())
+			m_CachedVariables.erase(itr);
+	}
+	
+	FunctionCallback InterpreterState::getFunction(const std::string& function) {
+		for (auto itr = m_Functions.rbegin(); itr != m_Functions.rend(); ++itr) {
+			auto& functions = *itr;
+			auto func = functions.find(function);
+			if (func != functions.end())
+				return func->second;
+		}
+		return nullptr;
+	}
+
+	std::string_view InterpreterState::getVariable(const std::string& variable) {
+		for (auto itr = m_Variables.rbegin(); itr != m_Variables.rend(); ++itr) {
+			auto& variables = *itr;
+			auto var = variables.find(variable);
+			if (var != variables.end())
+				return var->second;
+		}
+		return {};
+	}
+
+	std::string_view InterpreterState::getCachedVariable(const std::string& variable) {
+		auto itr = m_CachedVariables.find(variable);
+		if (itr != m_CachedVariables.end())
+			return itr->second;
+		return {};
+	}
+	
+	void InterpreterState::startScope() {
+		m_Variables.push_back({});
+		m_Functions.push_back({});
+	}
+	
+	void InterpreterState::endScope() {
+		m_Variables.pop_back();
+		m_Functions.pop_back();
+	}
 
 	bool InterpreterState::hasNext() {
 		return !m_Borked && m_CurrentCommand < m_Lex->m_Root.m_Children.size();
@@ -54,19 +223,7 @@ namespace CMakeInterpreter {
 		if (!hasNext())
 			return;
 
-		auto& fileElement = m_Lex->m_Root.m_Children[m_CurrentCommand];
-		if (fileElement.m_Type != LexNodeType::FileElement) {
-			++m_CurrentCommand;
-			return;
-		}
-
-		auto& fileElementChildren = fileElement.m_Children;
-		if (fileElementChildren.empty()) {
-			++m_CurrentCommand;
-			return;
-		}
-
-		auto& commandInvocation = fileElementChildren[0];
+		auto& commandInvocation = m_Lex->m_Root.m_Children[m_CurrentCommand];
 		if (commandInvocation.m_Type != LexNodeType::CommandInvocation) {
 			++m_CurrentCommand;
 			return;
@@ -232,27 +389,6 @@ namespace CMakeInterpreter {
 				i = start;
 			}
 		}
-	}
-
-	FunctionCallback InterpreterState::getFunction(const std::string& function) {
-		auto itr = m_Functions.find(function);
-		if (itr != m_Functions.end())
-			return itr->second;
-		return nullptr;
-	}
-
-	std::string_view InterpreterState::getVariable(const std::string& variable) {
-		auto itr = m_Variables.find(variable);
-		if (itr != m_Variables.end())
-			return itr->second;
-		return {};
-	}
-
-	std::string_view InterpreterState::getCachedVariable(const std::string& variable) {
-		auto itr = m_CachedVariables.find(variable);
-		if (itr != m_CachedVariables.end())
-			return itr->second;
-		return {};
 	}
 
 	void InterpreterState::runtimeError(std::string_view message) {

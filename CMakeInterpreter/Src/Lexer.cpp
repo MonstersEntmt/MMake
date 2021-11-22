@@ -80,7 +80,7 @@ namespace CMakeInterpreter {
 			}
 
 			end = tempEnd;
-			node.m_Children.push_back(std::move(commandInvocation));
+			node = std::move(commandInvocation);
 			return LexResult::Success;
 		};
 
@@ -135,9 +135,6 @@ namespace CMakeInterpreter {
 
 		auto result = variant1();
 		if (result == LexResult::Success) {
-			node.m_Type  = LexNodeType::FileElement;
-			node.m_Begin = begin;
-			node.m_End   = end;
 			return LexResult::Success;
 		} else if (result == LexResult::Error) {
 			return LexResult::Error;

@@ -25,7 +25,6 @@ namespace CMakeInterpreter {
 	enum class LexNodeType {
 		Unknown,
 		File,
-		FileElement,
 		CommandInvocation,
 		Identifier,
 		Arguments,
