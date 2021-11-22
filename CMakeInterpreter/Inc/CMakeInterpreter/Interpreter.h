@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Lexer.h"
+
 #include <functional>
 #include <string>
 #include <string_view>
@@ -7,9 +9,6 @@
 #include <vector>
 
 namespace CMakeInterpreter {
-	struct Lex;
-	struct LexNode;
-
 	struct InterpreterState;
 
 	using FunctionCallback = std::function<void(InterpreterState& interpreter, std::string_view args)>;
@@ -23,14 +22,16 @@ namespace CMakeInterpreter {
 		bool hasNext();
 		void next();
 
-		void evalVariableRefs(std::string& str);
+		void evalVariableRefs(std::string& str, SourceRef at);
 
 		FunctionCallback getFunction(const std::string& function);
 		std::string_view getVariable(const std::string& variable);
 		std::string_view getCachedVariable(const std::string& variable);
 
 		void runtimeError(std::string_view message);
-		void runtimeError(std::string_view message, const LexNode& node);
+		void runtimeError(std::string_view message, SourceRef at);
+		void runtimeWarning(std::string_view message);
+		void runtimeWarning(std::string_view message, SourceRef at);
 
 	public:
 		std::unordered_map<std::string, FunctionCallback> m_Functions;

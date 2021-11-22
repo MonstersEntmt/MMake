@@ -140,7 +140,7 @@ namespace MMake {
 		SourceRef end;
 		std::vector<LexError> errors;
 		Lex lex = lexString(R"(
-FUNC()
+function(${VAR${HE}})
 )",
 		                    begin,
 		                    end,

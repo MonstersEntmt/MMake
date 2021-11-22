@@ -2,6 +2,7 @@
 #include "CMakeInterpreter/Lexer.h"
 
 #include <iostream>
+#include <sstream>
 
 namespace CMakeInterpreter {
 	std::vector<std::string> splitArguments(std::string_view args) {
@@ -55,43 +56,43 @@ namespace CMakeInterpreter {
 
 		auto& fileElement = m_Lex->m_Root.m_Children[m_CurrentCommand];
 		if (fileElement.m_Type != LexNodeType::FileElement) {
-			runtimeError("Expected FileElement", fileElement);
+			++m_CurrentCommand;
 			return;
 		}
 
 		auto& fileElementChildren = fileElement.m_Children;
 		if (fileElementChildren.empty()) {
-			runtimeError("Expected CommandInvocation", fileElement);
+			++m_CurrentCommand;
 			return;
 		}
 
 		auto& commandInvocation = fileElementChildren[0];
 		if (commandInvocation.m_Type != LexNodeType::CommandInvocation) {
-			runtimeError("Expected CommandInvocation", commandInvocation);
+			++m_CurrentCommand;
 			return;
 		}
 
 		auto& commandInvocationChildren = commandInvocation.m_Children;
 		if (commandInvocationChildren.size() < 2) {
-			runtimeError("Expected Identifier and Arguments", commandInvocation);
+			++m_CurrentCommand;
 			return;
 		}
 
 		auto& identifier = commandInvocationChildren[0];
 		if (identifier.m_Type != LexNodeType::Identifier) {
-			runtimeError("Expected Identifier", identifier);
+			++m_CurrentCommand;
 			return;
 		}
 
 		auto& arguments = commandInvocationChildren[1];
 		if (arguments.m_Type != LexNodeType::Arguments) {
-			runtimeError("Expected Arguments", arguments);
+			++m_CurrentCommand;
 			return;
 		}
 
 		auto function = getFunction(std::string { identifier.m_Str });
 		if (!function) {
-			runtimeError("Function not found", identifier);
+			runtimeError("Function '" + std::string { identifier.m_Str } + "' not found", identifier.m_Begin);
 			return;
 		}
 
@@ -126,12 +127,11 @@ namespace CMakeInterpreter {
 						str += element.m_Str;
 						break;
 					default:
-						runtimeError("Unexpected element type", element);
-						return;
+						break;
 					}
 				}
 
-				evalVariableRefs(str);
+				evalVariableRefs(str, argument.m_Begin);
 				args += str;
 				break;
 			}
@@ -157,24 +157,22 @@ namespace CMakeInterpreter {
 						str += element.m_Str;
 						break;
 					default:
-						runtimeError("Unexpected element type", element);
-						return;
+						break;
 					}
 				}
 
-				evalVariableRefs(str);
+				evalVariableRefs(str, argument.m_Begin);
 				args += str;
 				break;
 			}
 			case LexNodeType::UnquotedLegacy: {
 				std::string str = std::string { argument.m_Str };
-				evalVariableRefs(str);
+				evalVariableRefs(str, argument.m_Begin);
 				args += str;
 				break;
 			}
 			default:
-				runtimeError("Unexpected argument type", argument);
-				return;
+				break;
 			}
 		}
 
@@ -182,7 +180,7 @@ namespace CMakeInterpreter {
 		++m_CurrentCommand;
 	}
 
-	void InterpreterState::evalVariableRefs(std::string& str) {
+	void InterpreterState::evalVariableRefs(std::string& str, SourceRef at) {
 		for (std::size_t i = str.size() - 1; i != ~0ULL; --i) {
 			if (str[i] == '$') {
 				std::size_t start = i;
@@ -212,10 +210,22 @@ namespace CMakeInterpreter {
 							value = getVariable(variableName);
 						}
 
-						if (value.empty())
+						if (value.empty()) {
 							str.erase(start, 1 + i - start);
-						else
+							
+							SourceRef varAt = at;
+							varAt.m_Index += start;
+							varAt.m_Column += start;
+							if (type == "ENV") {
+								runtimeWarning("Environment variable '" + variableName + "' isn't set!", varAt);
+							} else if (type == "CACHE") {
+								runtimeWarning("Cached variable '" + variableName + "' isn't set!", varAt);
+							} else {
+								runtimeWarning("Variable '" + variableName + "' isn't set!", varAt);
+							}
+						} else {
 							str.replace(start, 1 + i - start, value);
+						}
 					}
 				}
 
@@ -245,22 +255,50 @@ namespace CMakeInterpreter {
 		return {};
 	}
 
-	static void printSourceRef(SourceRef sourceRef) {
-		std::cout << sourceRef.m_Index << ": " << sourceRef.m_Line << ", " << sourceRef.m_Column;
-	}
-
 	void InterpreterState::runtimeError(std::string_view message) {
 		if (m_CurrentCommand < m_Lex->m_Root.m_Children.size()) {
-			runtimeError(message, m_Lex->m_Root.m_Children[m_CurrentCommand]);
+			runtimeError(message, m_Lex->m_Root.m_Children[m_CurrentCommand].m_Begin);
 		} else {
 			runtimeError(message, {});
 		}
 	}
 
-	void InterpreterState::runtimeError(std::string_view message, const LexNode& node) {
-		std::cerr << message << ", at (";
-		printSourceRef(node.m_Begin);
-		std::cerr << ")\n";
+	void InterpreterState::runtimeError(std::string_view message, SourceRef at) {
+		std::ostringstream str;
+		str << "CMake Runtime Error: " << message << "\n";
+		auto lineBegin = m_Lex->m_Source.find_last_of('\n', at.m_Index);
+		if (lineBegin >= m_Lex->m_Source.size())
+			lineBegin = 0;
+		auto lineEnd             = m_Lex->m_Source.find_first_of('\n', at.m_Index);
+		std::string_view strview = m_Lex->m_Source;
+		std::string lineNr       = std::to_string(at.m_Line) + ": ";
+		str << lineNr << strview.substr(lineBegin + 1, lineEnd - lineBegin - 1);
+		str << '\n'
+			<< std::string(lineNr.size() + at.m_Column - 1, ' ') << "^\n";
+		std::cerr << str.str();
 		m_Borked = true;
+	}
+	
+	void InterpreterState::runtimeWarning(std::string_view message) {
+		if (m_CurrentCommand < m_Lex->m_Root.m_Children.size()) {
+			runtimeWarning(message, m_Lex->m_Root.m_Children[m_CurrentCommand].m_Begin);
+		} else {
+			runtimeWarning(message, {});
+		}
+	}
+
+	void InterpreterState::runtimeWarning(std::string_view message, SourceRef at) {
+		std::ostringstream str;
+		str << "CMake Runtime Warning: " << message << "\n";
+		auto lineBegin = m_Lex->m_Source.find_last_of('\n', at.m_Index);
+		if (lineBegin >= m_Lex->m_Source.size())
+			lineBegin = 0;
+		auto lineEnd             = m_Lex->m_Source.find_first_of('\n', at.m_Index);
+		std::string_view strview = m_Lex->m_Source;
+		std::string lineNr       = std::to_string(at.m_Line) + ": ";
+		str << lineNr << strview.substr(lineBegin + 1, lineEnd - lineBegin - 1);
+		str << '\n'
+			<< std::string(lineNr.size() + at.m_Column - 1, ' ') << "^\n";
+		std::cout << str.str();
 	}
 } // namespace CMakeInterpreter
