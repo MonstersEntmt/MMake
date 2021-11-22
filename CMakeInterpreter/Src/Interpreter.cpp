@@ -25,6 +25,9 @@ namespace CMakeInterpreter {
 				break;
 			}
 		}
+		
+		if (offset < args.size())
+			splittedArgs.push_back(std::string { args.substr(offset) });
 
 		for (auto& arg : splittedArgs) {
 			for (std::size_t i = 0; i < arg.size(); ++i) {
@@ -37,9 +40,6 @@ namespace CMakeInterpreter {
 				}
 			}
 		}
-
-		if (offset < args.size())
-			splittedArgs.push_back(std::string { args.substr(offset) });
 		return splittedArgs;
 	}
 	
@@ -62,10 +62,64 @@ namespace CMakeInterpreter {
 		state.removeVariable(args.substr(0, variableNameEnd));
 	}
 	
-	void cmake_function_callback(std::size_t startLine, std::size_t endLine, InterpreterState& state, std::string_view args) {
+	void cmake_function_callback(std::size_t startLine, std::size_t endLine, const std::string& argNames, InterpreterState& state, std::string_view args) {
 		auto entry = state.m_CurrentCommand;
 		state.m_CurrentCommand = startLine;
 		state.startScope();
+		
+		std::vector<std::string_view> splittedArgs;
+		std::size_t offset = 0;
+		bool escaped       = false;
+		for (std::size_t i = 0; i < args.size(); ++i) {
+			switch (args[i]) {
+			case '\\':
+				escaped = !escaped;
+				break;
+			case ';':
+				if (!escaped) {
+					splittedArgs.push_back(args.substr(offset, i - offset));
+					offset = i + 1;
+				}
+				[[fallthrough]];
+			default:
+				escaped = false;
+				break;
+			}
+		}
+		
+		if (offset < args.size())
+			splittedArgs.push_back(args.substr(offset));
+		
+		std::vector<std::string_view> splittedArgNames;
+		offset = 0;
+		escaped       = false;
+		for (std::size_t i = 0; i < argNames.size(); ++i) {
+			switch (argNames[i]) {
+			case '\\':
+				escaped = !escaped;
+				break;
+			case ';':
+				if (!escaped) {
+					splittedArgNames.push_back(argNames.substr(offset, i - offset));
+					offset = i + 1;
+				}
+				[[fallthrough]];
+			default:
+				escaped = false;
+				break;
+			}
+		}
+		
+		if (offset < argNames.size())
+			splittedArgNames.push_back(argNames.substr(offset));
+		
+		state.addVariable("ARGC", std::to_string(splittedArgs.size()));
+		for (std::size_t i = 0; i < splittedArgs.size(); ++i) {
+			state.addVariable("ARGV" + std::to_string(1 + i), splittedArgs[i]);
+			if (i < splittedArgNames.size())
+				state.addVariable(splittedArgNames[i], splittedArgs[i]);
+		}
+		
 		while (state.m_CurrentCommand <= endLine && state.hasNext()) {
 			state.next();
 		}
@@ -74,7 +128,11 @@ namespace CMakeInterpreter {
 	}
 	
 	void cmake_function(InterpreterState& state, std::string_view args) {
-		std::string_view functionName = args.substr(0,  args.find_first_of(';'));
+		auto functionNameEnd = args.find_first_of(';');
+		std::string_view functionName = args.substr(0,  functionNameEnd);
+		std::string_view argNames;
+		if (functionNameEnd < args.size() - 1)
+			argNames = args.substr(functionNameEnd + 1);
 		std::size_t start = state.m_CurrentCommand + 1;
 		std::size_t end = start;
 		std::size_t layers = 1;
@@ -99,7 +157,7 @@ namespace CMakeInterpreter {
 					break;
 		}
 		
-		state.addFunction(functionName, cmake_function_callback, start, end - 1);
+		state.addFunction(functionName, cmake_function_callback, start, end - 1, std::string { argNames });
 		state.m_CurrentCommand = end;
 	}
 	
@@ -150,7 +208,7 @@ namespace CMakeInterpreter {
 			return;
 		
 		auto& vars = m_Variables[m_Variables.size() - (parent ? 2 : 1)];
-		vars.insert({ std::string{ name }, std::string{ value } });
+		vars.insert_or_assign(std::string{ name }, std::string{ value });
 	}
 	
 	void InterpreterState::removeVariable(std::string_view name) {

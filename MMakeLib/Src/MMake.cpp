@@ -137,20 +137,13 @@ namespace MMake {
 		SourceRef end;
 		std::vector<LexError> errors;
 		Lex lex = lexString(R"(
-function(test_func)
-	function(another_func)
-		message("Inner inner func")
-	endfunction()
-	set(VAR "Hello")
-	set(OUTER_VAR "Test" PARENT_SCOPE)
-	message("Test" ${VAR} ${OUTER_VAR})
-	another_func()
+function(test_func Wut)
+	message(${Wut})
+	message(${ARGC})
+	message(${ARGV1})
 endfunction()
 
-message("Start")
-test_func()
-message("End" ${VAR} ${OUTER_VAR})
-another_func()
+test_func("Hehe")
 )",
 		                    begin,
 		                    end,
