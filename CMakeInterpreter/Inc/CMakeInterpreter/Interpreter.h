@@ -15,6 +15,18 @@ namespace CMakeInterpreter {
 
 	std::vector<std::string> splitArguments(std::string_view args);
 	
+	enum class InterpreterScopeType {
+		Function,
+		Macro
+	};
+	
+	struct InterpreterScope {
+		InterpreterScope(std::size_t returnCommand, InterpreterScopeType type = InterpreterScopeType::Function);
+		
+		std::size_t m_ReturnCommand;
+		InterpreterScopeType m_Type;
+	};
+	
 	struct InterpreterState {
 	public:
 		InterpreterState(Lex* lex);
@@ -47,7 +59,7 @@ namespace CMakeInterpreter {
 		std::string_view getVariable(const std::string& variable);
 		std::string_view getCachedVariable(const std::string& variable);
 		
-		void startScope();
+		void startScope(std::size_t startAt, InterpreterScopeType type = InterpreterScopeType::Function);
 		void endScope();
 		
 		bool hasNext();
@@ -64,6 +76,7 @@ namespace CMakeInterpreter {
 		std::vector<std::unordered_map<std::string, FunctionCallback>> m_Functions;
 		std::vector<std::unordered_map<std::string, std::string>> m_Variables;
 		std::unordered_map<std::string, std::string> m_CachedVariables;
+		std::vector<InterpreterScope> m_Scopes;
 		std::size_t m_CurrentCommand = 0;
 		Lex* m_Lex;
 

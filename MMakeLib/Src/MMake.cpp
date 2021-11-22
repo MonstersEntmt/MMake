@@ -137,13 +137,22 @@ namespace MMake {
 		SourceRef end;
 		std::vector<LexError> errors;
 		Lex lex = lexString(R"(
-function(test_func Wut)
-	message(${Wut})
-	message(${ARGC})
-	message(${ARGV1})
-endfunction()
+macro(test_macro)
+	function(test_func)
+		macro(another_macro)
+			message("He")
+		endmacro()
+		message("Cool")
+		another_macro()
+	endfunction()
+	message("World")
+	test_func()
+	return()
+endmacro()
 
-test_func("Hehe")
+message("Hello")
+test_macro()
+message("Skipped")
 )",
 		                    begin,
 		                    end,

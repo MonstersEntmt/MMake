@@ -63,9 +63,7 @@ namespace CMakeInterpreter {
 	}
 	
 	void cmake_function_callback(std::size_t startLine, std::size_t endLine, const std::string& argNames, InterpreterState& state, std::string_view args) {
-		auto entry = state.m_CurrentCommand;
-		state.m_CurrentCommand = startLine;
-		state.startScope();
+		state.startScope(startLine);
 		
 		std::vector<std::string_view> splittedArgs;
 		std::size_t offset = 0;
@@ -120,11 +118,8 @@ namespace CMakeInterpreter {
 				state.addVariable(splittedArgNames[i], splittedArgs[i]);
 		}
 		
-		while (state.m_CurrentCommand <= endLine && state.hasNext()) {
+		while (state.m_CurrentCommand >= startLine && state.m_CurrentCommand <= endLine && state.hasNext())
 			state.next();
-		}
-		state.endScope(),
-		state.m_CurrentCommand = entry;
 	}
 	
 	void cmake_function(InterpreterState& state, std::string_view args) {
@@ -157,19 +152,126 @@ namespace CMakeInterpreter {
 					break;
 		}
 		
-		state.addFunction(functionName, cmake_function_callback, start, end - 1, std::string { argNames });
-		state.m_CurrentCommand = end;
+		state.addFunction(functionName, cmake_function_callback, start, end, std::string { argNames });
+		state.m_CurrentCommand = end + 1;
 	}
 	
-	void cmake_endfunction(InterpreterState& state, std::string_view args) {}
+	void cmake_endfunction(InterpreterState& state, std::string_view args) {
+		state.endScope();
+	}
+	
+	void cmake_macro_callback(std::size_t startLine, std::size_t endLine, const std::string& argNames, InterpreterState& state, std::string_view args) {
+		state.startScope(startLine, InterpreterScopeType::Macro);
+		
+		std::vector<std::string_view> splittedArgs;
+		std::size_t offset = 0;
+		bool escaped       = false;
+		for (std::size_t i = 0; i < args.size(); ++i) {
+			switch (args[i]) {
+			case '\\':
+				escaped = !escaped;
+				break;
+			case ';':
+				if (!escaped) {
+					splittedArgs.push_back(args.substr(offset, i - offset));
+					offset = i + 1;
+				}
+				[[fallthrough]];
+			default:
+				escaped = false;
+				break;
+			}
+		}
+		
+		if (offset < args.size())
+			splittedArgs.push_back(args.substr(offset));
+		
+		std::vector<std::string_view> splittedArgNames;
+		offset = 0;
+		escaped       = false;
+		for (std::size_t i = 0; i < argNames.size(); ++i) {
+			switch (argNames[i]) {
+			case '\\':
+				escaped = !escaped;
+				break;
+			case ';':
+				if (!escaped) {
+					splittedArgNames.push_back(argNames.substr(offset, i - offset));
+					offset = i + 1;
+				}
+				[[fallthrough]];
+			default:
+				escaped = false;
+				break;
+			}
+		}
+		
+		if (offset < argNames.size())
+			splittedArgNames.push_back(argNames.substr(offset));
+		
+		state.addVariable("ARGC", std::to_string(splittedArgs.size()));
+		for (std::size_t i = 0; i < splittedArgs.size(); ++i) {
+			state.addVariable("ARGV" + std::to_string(1 + i), splittedArgs[i]);
+			if (i < splittedArgNames.size())
+				state.addVariable(splittedArgNames[i], splittedArgs[i]);
+		}
+		
+		while (state.m_CurrentCommand >= startLine && state.m_CurrentCommand <= endLine && state.hasNext())
+			state.next();
+	}
+	
+	void cmake_macro(InterpreterState& state, std::string_view args) {
+		auto functionNameEnd = args.find_first_of(';');
+		std::string_view functionName = args.substr(0,  functionNameEnd);
+		std::string_view argNames;
+		if (functionNameEnd < args.size() - 1)
+			argNames = args.substr(functionNameEnd + 1);
+		std::size_t start = state.m_CurrentCommand + 1;
+		std::size_t end = start;
+		std::size_t layers = 1;
+		for (; end < state.m_Lex->m_Root.m_Children.size(); ++end) {
+			auto& commandInvocation = state.m_Lex->m_Root.m_Children[end];
+			if (commandInvocation.m_Type != LexNodeType::CommandInvocation)
+				continue;
+			
+			auto& commandInvocationChildren = commandInvocation.m_Children;
+			if (commandInvocationChildren.size() < 2)
+				continue;
+
+			auto& identifier = commandInvocationChildren[0];
+			if (identifier.m_Type != LexNodeType::Identifier)
+				continue;
+			
+			if (identifier.m_Str == "macro")
+				++layers;
+			
+			if (identifier.m_Str == "endmacro")
+				if (--layers == 0)
+					break;
+		}
+		
+		state.addFunction(functionName, cmake_macro_callback, start, end, std::string { argNames });
+		state.m_CurrentCommand = end + 1;
+	}
+	
+	void cmake_endmacro(InterpreterState& state, std::string_view args) {
+		state.endScope();
+	}
+	
+	void cmake_return(InterpreterState& state, std::string_view args) {
+		state.endScope();
+	}
 	
 	void cmake_message(InterpreterState& state, std::string_view args) {
 		std::cout << args << std::endl;
 	}
 	
+	InterpreterScope::InterpreterScope(std::size_t returnCommand, InterpreterScopeType type)
+		: m_ReturnCommand(returnCommand), m_Type(type) {}
+	
 	InterpreterState::InterpreterState(Lex* lex)
-	    : m_Lex(lex) {
-		startScope();
+	    : m_Lex(lex), m_CurrentCommand(~0ULL) {
+		startScope(0);
 	}
 
 	void InterpreterState::addDefaultFunctions() {
@@ -177,6 +279,9 @@ namespace CMakeInterpreter {
 		addFunction("unset", &cmake_unset);
 		addFunction("function", &cmake_function);
 		addFunction("endfunction", &cmake_endfunction);
+		addFunction("macro", &cmake_macro);
+		addFunction("endmacro", &cmake_endmacro);
+		addFunction("return", &cmake_return);
 		addFunction("message", &cmake_message);
 	}
 	
@@ -263,14 +368,36 @@ namespace CMakeInterpreter {
 		return {};
 	}
 	
-	void InterpreterState::startScope() {
-		m_Variables.push_back({});
-		m_Functions.push_back({});
+	void InterpreterState::startScope(std::size_t startAt, InterpreterScopeType type) {
+		std::cout << "Open new scope starting at: " << startAt << "\n";
+		if (type == InterpreterScopeType::Function) {
+			m_Variables.push_back({});
+			m_Functions.push_back({});
+		}
+		m_Scopes.emplace_back(m_CurrentCommand, type);
+		m_CurrentCommand = startAt;
 	}
 	
 	void InterpreterState::endScope() {
-		m_Variables.pop_back();
-		m_Functions.pop_back();
+		auto itr = m_Scopes.rbegin();
+		auto type = itr->m_Type;
+		if (type == InterpreterScopeType::Function) {
+			for (; itr != m_Scopes.rend(); ++itr)
+				if (itr->m_Type == InterpreterScopeType::Function)
+					break;
+		}
+		
+		if (itr != m_Scopes.rend()) {
+			m_CurrentCommand = itr->m_ReturnCommand;
+			auto index = static_cast<std::uint64_t>(&*itr - &*m_Scopes.begin()) / sizeof(*itr);
+			m_Scopes.erase(m_Scopes.begin() + index, m_Scopes.end());
+			std::cout << "End scope and return to: " << m_CurrentCommand << "\n";
+		}
+		
+		if (type == InterpreterScopeType::Function) {
+			m_Variables.pop_back();
+			m_Functions.pop_back();
+		}
 	}
 
 	bool InterpreterState::hasNext() {
@@ -391,8 +518,10 @@ namespace CMakeInterpreter {
 			}
 		}
 
+		auto before = m_CurrentCommand;
 		function(*this, args);
-		++m_CurrentCommand;
+		if (m_CurrentCommand == before)
+			++m_CurrentCommand;
 	}
 
 	void InterpreterState::evalVariableRefs(std::string& str, SourceRef at) {
