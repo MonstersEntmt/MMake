@@ -34,7 +34,6 @@ void Tester::test() {
 			else
 				std::cout << Colors::Success;
 			std::cout << numSuccess << "/" << tests.second.size() << " PASS";
-			
 		} else {
 			std::cout << Colors::Error << (tests.second.size() - numSuccess) << "/" << tests.second.size() << " FAIL";
 		}
