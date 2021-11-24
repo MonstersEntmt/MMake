@@ -360,7 +360,8 @@ namespace CMakeInterpreter {
 		} else if (result == LexResult::Success) {
 			tempStr   = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
 			tempBegin = tempEnd;
-			node.m_Children.push_back(std::move(argument));
+			if (argument.m_Type != LexNodeType::Unknown)
+				node.m_Children.push_back(std::move(argument));
 		}
 		tempErrors.clear();
 
@@ -376,7 +377,8 @@ namespace CMakeInterpreter {
 			}
 			tempStr   = tempStr.substr(tempEnd.m_Index - tempBegin.m_Index);
 			tempBegin = tempEnd;
-			node.m_Children.push_back(std::move(separatedArgument));
+			if (separatedArgument.m_Type != LexNodeType::Unknown)
+				node.m_Children.push_back(std::move(separatedArgument));
 		}
 
 		end = tempEnd;
@@ -424,6 +426,13 @@ namespace CMakeInterpreter {
 				for (auto& error : tempErrors)
 					errors.push_back(std::move(error));
 				return LexResult::Error;
+			} else if (result == LexResult::Skip) {
+				if (hasSeparation) {
+					end = tempEnd;
+					return LexResult::Done;
+				} else {
+					return LexResult::Skip;
+				}
 			} else if (result == LexResult::Success) {
 				node = std::move(tempArgument);
 			}
@@ -504,6 +513,8 @@ namespace CMakeInterpreter {
 		if (result == LexResult::Error)
 			return LexResult::Error;
 		else if (result == LexResult::Success)
+			return LexResult::Success;
+		else if (result == LexResult::Done)
 			return LexResult::Success;
 
 		result = variant2();
@@ -1025,7 +1036,7 @@ namespace CMakeInterpreter {
 	}
 
 	LexResult lexUnquotedLegacy(std::string_view str, SourceRef begin, SourceRef& end, LexNode& node, std::vector<LexError>& errors) {
-		if (str.empty() || str[0] == '"')
+		if (str.empty() || str[0] == '"' || str[0] == '(')
 			return LexResult::Skip;
 
 		bool insideString = false;
@@ -1081,6 +1092,9 @@ namespace CMakeInterpreter {
 			if (breakOut)
 				break;
 		}
+		if (len == 0)
+			return LexResult::Skip;
+		
 		end.m_Index  = begin.m_Index + len;
 		end.m_Line   = begin.m_Line;
 		end.m_Column = begin.m_Column + len;
@@ -1237,6 +1251,8 @@ namespace CMakeInterpreter {
 		} else if (result == LexResult::Skip) {
 			return LexResult::Skip;
 		}
+		
+		end = tempEnd;
 
 		return LexResult::Success;
 	}

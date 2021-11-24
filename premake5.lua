@@ -1,19 +1,11 @@
 -- This file is only temporary until the MMake can generate a build system for itself.
 -- Then using MMake it will pregenerate Visual Studio solution and gnu make files as a fallback.
 newoption({
-	trigger = "no-cmake-interpreter",
-	description = "Disables CMake Interpreter, making MMake unable to run CMake scripts"
-})
-newoption({
 	trigger = "no-tests",
 	description = "Disables Tests"
 })
 
-local integrateCMakeInterpreter = true
 local buildTests = true
-if _OPTIONS["no-cmake-interpreter"] then
-	integrateCMakeInterpreter = false
-end
 if _OPTIONS["no-tests"] then
 	buildTests = false
 end
@@ -109,6 +101,7 @@ end
 			"%{prj.location}/CommonCLI/Inc/**",
 			"%{prj.location}/CommonCLI/Src/**"
 		})
+		removefiles({ "*.DS_Store" })
 
 	project("Piccolo")
 		location("%{wks.location}/ThirdParty/")
@@ -122,20 +115,20 @@ end
 		files({
 			"%{prj.location}/Piccolo/**"
 		})
+		removefiles({ "*.DS_Store" })
 
 	group("Libs")
-	if integrateCMakeInterpreter then
-		project("CMakeInterpreter")
-			location("%{wks.location}/CMakeInterpreter/")
-			kind("StaticLib")
+	project("CMakeInterpreter")
+		location("%{wks.location}/CMakeInterpreter/")
+		kind("StaticLib")
 
-			includedirs({ "%{prj.location}/Inc/" })
+		includedirs({ "%{prj.location}/Inc/" })
 
-			files({
-				"%{prj.location}/Inc/**",
-				"%{prj.location}/Src/**"
-			})
-	end
+		files({
+			"%{prj.location}/Inc/**",
+			"%{prj.location}/Src/**"
+		})
+		removefiles({ "*.DS_Store" })
 
 	project("MMakeLib")
 		location("%{wks.location}/MMakeLib/")
@@ -143,25 +136,22 @@ end
 
 		includedirs({ "%{prj.location}/Inc/" })
 
-		if integrateCMakeInterpreter then
-			defines({ "MMAKE_CMAKE_INTERPRETER" })
-			links({ "CMakeInterpreter" })
-			sysincludedirs({ "%{wks.location}/CMakeInterpreter/Inc/" })
-		end
-
 		links({
 			"CommonCLI",
-			"Piccolo"
+			"Piccolo",
+			"CMakeInterpreter"
 		})
 		sysincludedirs({ 
 			"%{wks.location}/ThirdParty/CommonCLI/Inc/",
-			"%{wks.location}/ThirdParty/"
+			"%{wks.location}/ThirdParty/",
+			"%{wks.location}/CMakeInterpreter/Inc/"
 		})
 
 		files({
 			"%{prj.location}/Inc/**",
 			"%{prj.location}/Src/**"
 		})
+		removefiles({ "*.DS_Store" })
 
 	group("MMake")
 	project("MMake")
@@ -170,20 +160,18 @@ end
 
 		includedirs({ "%{prj.location}/Src/" })
 
-		if integrateCMakeInterpreter then
-			defines({ "MMAKE_CMAKE_INTERPRETER" })
-			sysincludedirs({ "%{wks.location}/CMakeInterpreter/Inc/" })
-		end
 		links({
 			"MMakeLib",
 			"CommonCLI"
 		})
 		sysincludedirs({
 			"%{wks.location}/MMakeLib/Inc/",
-			"%{wks.location}/ThirdParty/CommonCLI/Inc/"
+			"%{wks.location}/ThirdParty/CommonCLI/Inc/",
+			"%{wks.location}/CMakeInterpreter/Inc/"
 		})
 
 		files({ "%{prj.location}/Src/**" })
+		removefiles({ "*.DS_Store" })
 
 	if buildTests then
 		group("Tests")
@@ -191,7 +179,18 @@ end
 			location("%{wks.location}/Tests/")
 			kind("ConsoleApp")
 
+			links({ "MMakeLib" })
+			sysincludedirs({
+				"%{wks.location}/MMakeLib/Inc/",
+				"%{wks.location}/ThirdParty/CommonCLI/Inc/",
+				"%{wks.location}/CMakeInterpreter/Inc/"
+			})
+
 			includedirs({ "%{prj.location}/Src/" })
 
-			files({ "%{prj.location}/Src/**" })
+			files({
+				"%{prj.location}/Run/**",
+				"%{prj.location}/Src/**"
+			})
+			removefiles({ "*.DS_Store" })
 	end
