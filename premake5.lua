@@ -77,7 +77,7 @@ end
 
 	filter({})
 
-	targetdir("%{wks.location}/Bin/%{cfg.system}-%{cfg.platform}-%{cfg.buildcfg}/")
+	targetdir("%{wks.location}/Bin/Int-%{cfg.system}-%{cfg.platform}-%{cfg.buildcfg}/%{prj.name}/")
 	objdir("%{wks.location}/Bin/Int-%{cfg.system}-%{cfg.platform}-%{cfg.buildcfg}/%{prj.name}/")
 
 	if buildTests then
@@ -157,6 +157,7 @@ end
 	project("MMake")
 		location("%{wks.location}/MMake/")
 		kind("ConsoleApp")
+		targetdir("%{wks.location}/Bin/%{cfg.system}-%{cfg.platform}-%{cfg.buildcfg}/")
 
 		includedirs({ "%{prj.location}/Src/" })
 
@@ -178,6 +179,7 @@ end
 		project("Tests")
 			location("%{wks.location}/Tests/")
 			kind("ConsoleApp")
+			targetdir("%{wks.location}/Bin/%{cfg.system}-%{cfg.platform}-%{cfg.buildcfg}/")
 
 			links({ "MMakeLib" })
 			sysincludedirs({

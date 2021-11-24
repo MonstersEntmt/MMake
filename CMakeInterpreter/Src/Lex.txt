@@ -2,7 +2,7 @@
 # Comment:      '#.*'
 # Empty:        '\s*'
 # Rule:         '(<Identifier>:):\\s+(<Value>:)'
-# Skipped Rule: '(<Identifier>:)\\?:\\s+(<Value>:)'
+# Rule:         '(<Identifier>:)\\?:\\s+(<Value>:)'
 # Identifier:   '[A-Za-z_][A-Za-z0-9_]*'
 # Value: one of
 #   Identifier:  '(<Identifier>:)'
@@ -20,7 +20,7 @@
 file:        fileElement*
 fileElement: commandInvocation lineEnding
              (bracketComment | space)* lineEnding
-lineEnding?: lineComment? newline
+lineEnding:  lineComment? newline
 space?:      (' ' | '\t')+
 newline?:    '\n'
 
@@ -41,11 +41,11 @@ bracketOpen?:    '\\[' (<BracketCount>: '='*) '\\['
 bracketContent:  ('.' | newline)*
 bracketClose?:   '\\]' \BracketCount '\\]'
 
-quotedArgument:      '"' quotedElement* '"'
-quotedElement:       escapeSequence
-                     quotedContinuation
-                     (newline | '[^"\\]')*
-quotedContinuation?: '\\' newline
+quotedArgument:     '"' quotedElement* '"'
+quotedElement:      escapeSequence
+                    quotedContinuation
+                    (newline | '[^"\\]')*
+quotedContinuation: '\\' newline
 
 unquotedArgument: unquotedElement+
                   unqoutedLegacy
@@ -53,12 +53,7 @@ unqoutedElement:  escapeSequence
                   '(?:[^\\s()#"\\\\])+'
 unquotedLegacy:   <TODO: IDK WHAT THIS IS FUCK CMAKE DOCS>
 
-escapeSequence:  escapeEncoded
-                 escapeSemicolon
-                 escapeIdentity
-escapeIdentity:  '\\[^A-Za-z0-9;]'
-escapeEncoded:   '\\t' | '\\r' | '\\n'
-escapeSemicolon: '\\;'
+escapeSequence:  '\\(?:[^A-Za-z0-9;]|[trn;])'
 
-lineComment?:    '#(?!\\[=*\\[).*'
-bracketComment?: '#' bracketArgument
+lineComment:    '#(?!\\[=*\\[).*'
+bracketComment: '#' bracketArgument
