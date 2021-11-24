@@ -17,14 +17,14 @@ void Tester::test() {
 		std::size_t numSuccess = 0;
 		for (auto& test : tests.second) {
 			bool result = test.m_Callback(*this);
-			std::cout << Colors::Info << test.m_Name << " [";
+			std::cout << Colors::Info << "[";
 			if (result) {
 				std::cout << Colors::Success << "PASS";
 				++numSuccess;
 			} else {
 				std::cout << Colors::Error << "FAIL";
 			}
-			std::cout << Colors::Info << "]\n";
+			std::cout << Colors::Info << "] " << test.m_Name << "\n";
 		}
 		
 		std::cout << Colors::Info << "=== ";

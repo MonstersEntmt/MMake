@@ -350,20 +350,20 @@ static bool testEscapeCharacters(Tester& tester) {
 struct LexerTestsRegister {
 	LexerTestsRegister() {
 		auto& tester = Tester::Get();
-		tester.addTest("CMake", "Lex", &testLex);
-		tester.addTest("CMake", "no_arguments", &testNoArguments);
-		tester.addTest("CMake", "space_first_no_arguments", &testSpaceFirstNoArguments);
-		tester.addTest("CMake", "space_after_no_arguments", &testSpaceAfterNoArguments);
-		tester.addTest("CMake", "bracket_argument", &testBracketArgument);
-		tester.addTest("CMake", "quoted_argument", &testQuotedArgument);
-		tester.addTest("CMake", "unquoted_argument", &testUnquotedArgument);
-		tester.addTest("CMake", "unquoted_legacy_argument", &testUnquotedLegacyArgument);
-		tester.addTest("CMake", "unquoted_legacy_argument2", &testUnquotedLegacyArgument2);
-		tester.addTest("CMake", "space_before_argument", &testSpaceBeforeArgument);
-		tester.addTest("CMake", "space_after_argument", &testSpaceAfterArgument);
-		tester.addTest("CMake", "multi_argument", &testMultiArgument);
-		tester.addTest("CMake", "multiline_command", &testMultilineCommand);
-		tester.addTest("CMake", "arguments_in_arguments", &testArgumentsInArguments);
-		tester.addTest("CMake", "escape_characters", &testEscapeCharacters);
+		tester.addTest("CMakeLexer", "Lex", &testLex);
+		tester.addTest("CMakeLexer", "no_arguments", &testNoArguments);
+		tester.addTest("CMakeLexer", "space_first_no_arguments", &testSpaceFirstNoArguments);
+		tester.addTest("CMakeLexer", "space_after_no_arguments", &testSpaceAfterNoArguments);
+		tester.addTest("CMakeLexer", "bracket_argument", &testBracketArgument);
+		tester.addTest("CMakeLexer", "quoted_argument", &testQuotedArgument);
+		tester.addTest("CMakeLexer", "unquoted_argument", &testUnquotedArgument);
+		tester.addTest("CMakeLexer", "unquoted_legacy_argument", &testUnquotedLegacyArgument);
+		tester.addTest("CMakeLexer", "unquoted_legacy_argument2", &testUnquotedLegacyArgument2);
+		tester.addTest("CMakeLexer", "space_before_argument", &testSpaceBeforeArgument);
+		tester.addTest("CMakeLexer", "space_after_argument", &testSpaceAfterArgument);
+		tester.addTest("CMakeLexer", "multi_argument", &testMultiArgument);
+		tester.addTest("CMakeLexer", "multiline_command", &testMultilineCommand);
+		tester.addTest("CMakeLexer", "arguments_in_arguments", &testArgumentsInArguments);
+		tester.addTest("CMakeLexer", "escape_characters", &testEscapeCharacters);
 	}
 } lexerTestsRegister;
