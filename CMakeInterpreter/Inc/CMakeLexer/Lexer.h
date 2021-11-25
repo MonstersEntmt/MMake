@@ -8,9 +8,25 @@ namespace CMakeLexer {
 		Lexer();
 
 		virtual CommonLexer::Lex lexSource(CommonLexer::ISource* source) override;
+		
+		auto* getTFile() const { return &m_TFile; }
+		auto* getTFileElement() const { return &m_TFileElement; }
+		auto* getTCommandInvocation() const { return &m_TCommandInvocation; }
+		auto* getTIdentifier() const { return &m_TIdentifier; }
+		auto* getTArguments() const { return &m_TArguments; }
+		auto* getTBracketContent() const { return &m_TBracketContent; }
+		auto* getTQuotedArgument() const { return &m_TQuotedArgument; }
+		auto* getTQuotedElement() const { return &m_TQuotedElement; }
+		auto* getTUnquotedArgument() const { return &m_TUnquotedArgument; }
+		auto* getTUnquotedElement() const { return &m_TUnquotedElement; }
+		auto* getTUnquotedLegacy() const { return &m_TUnquotedLegacy; }
+		auto* getTEscapeSequence() const { return &m_TEscapeSequence; }
+		auto* getTLineComment() const { return &m_TLineComment; }
+		auto* getTBracketComment() const { return &m_TBracketComment; }
 
 	private:
 		CommonLexer::LexNodeType m_TFile;
+		CommonLexer::LexNodeType m_TFileElement;
 		CommonLexer::LexNodeType m_TCommandInvocation;
 		CommonLexer::LexNodeType m_TIdentifier;
 		CommonLexer::LexNodeType m_TArguments;

@@ -79,7 +79,7 @@ namespace CommonLexer {
 	std::vector<std::string> StringSource::getLines(std::size_t startLine, std::size_t lines) {
 		std::vector<std::string> lns;
 		for (std::size_t line = startLine, end = startLine + lines; line != end; ++line)
-			lns.push_back(std::move(getLine(line)));
+			lns.push_back(std::move(ISource::getLine(line)));
 		return lns;
 	}
 
@@ -163,7 +163,7 @@ namespace CommonLexer {
 	std::vector<std::string> FileSource::getLines(std::size_t startLine, std::size_t lines) {
 		std::vector<std::string> lns;
 		for (std::size_t line = startLine, end = startLine + lines; line != end; ++line)
-			lns.push_back(std::move(getLine(line)));
+			lns.push_back(std::move(ISource::getLine(line)));
 		return lns;
 	}
 } // namespace CommonLexer

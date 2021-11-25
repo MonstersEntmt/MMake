@@ -136,4 +136,4 @@ struct InterpreterTestsRegister {
 		tester.addTest("CMakeInterpreter", "MacroScope", &testMacroScope);
 		tester.addTest("CMakeInterpreter", "VarReplacements", &testVarReplacements);
 	}
-} interpreterTestsRegister;
+} /*interpreterTestsRegister*/;

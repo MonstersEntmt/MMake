@@ -3,6 +3,7 @@
 ML
 C
 ]=]
+#[===[BC]===] #[[ABC]]#LC
 
 no_arguments()
  space_first_no_arguments()

@@ -9,6 +9,23 @@
 #include <vector>
 
 namespace CommonLexer {
+	enum class LexerMessageSeverity {
+		Warning,
+		Error
+	};
+	
+	struct LexerMessage {
+	public:
+		LexerMessage();
+		LexerMessage(const std::string& message, const SourceSpan& span, LexerMessageSeverity severity = LexerMessageSeverity::Error);
+		LexerMessage(std::string&& message, SourceSpan&& span, LexerMessageSeverity severity = LexerMessageSeverity::Error);
+		
+	private:
+		std::string m_Message;
+		SourceSpan m_Span;
+		LexerMessageSeverity m_Severity;
+	};
+	
 	class LexNodeType {
 	public:
 		LexNodeType(const std::string& name);
@@ -24,6 +41,8 @@ namespace CommonLexer {
 	public:
 		LexNode();
 		LexNode(LexNodeType* type);
+		
+		LexNode* getChild(std::size_t index) const;
 
 		void setType(LexNodeType* type);
 		void setSourceSpan(ISource* source, const SourceSpan& span);
@@ -44,15 +63,19 @@ namespace CommonLexer {
 
 	struct Lex {
 	public:
+		Lex();
 		Lex(ISource* source);
 
 		auto getSource() const { return m_Source; }
 		auto& getRoot() { return m_Root; }
 		auto& getRoot() const { return m_Root; }
-
+		auto& getMessages() { return m_Messages; }
+		auto& getMessages() const { return m_Messages; }
+		
 	private:
 		ISource* m_Source;
 		LexNode m_Root;
+		std::vector<LexerMessage> m_Messages;
 	};
 
 	class Lexer {

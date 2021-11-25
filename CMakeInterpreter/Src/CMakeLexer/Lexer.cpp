@@ -3,6 +3,7 @@
 namespace CMakeLexer {
 	Lexer::Lexer()
 	    : m_TFile("file"),
+	      m_TFileElement("fileElement"),
 	      m_TCommandInvocation("commandInvocation"),
 	      m_TIdentifier("identifier"),
 	      m_TArguments("arguments"),
@@ -19,9 +20,7 @@ namespace CMakeLexer {
 
 	CommonLexer::Lex Lexer::lexSource(CommonLexer::ISource* source) {
 		CommonLexer::Lex lex { source };
-		
-
-
+		lex.getRoot() = CommonLexer::LexNode(&m_TFile);
 		return lex;
 	}
 } // namespace CMakeLexer
