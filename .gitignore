@@ -12,6 +12,13 @@ Makefile
 *.Make
 *.mak
 
+# CMake
+CMakeLists.txt
+*.cmake
+
+# CLion
+/.idea/
+
 # XCode
 *.xcworkspace
 *.xcodeproj/

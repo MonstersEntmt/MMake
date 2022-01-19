@@ -1,6 +1,8 @@
 #include "CommonLexer/Source.h"
 
 #include <utility>
+#include <string>
+#include <vector>
 
 namespace CommonLexer {
 	SourcePoint::SourcePoint()
