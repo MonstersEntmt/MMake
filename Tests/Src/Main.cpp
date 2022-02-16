@@ -1,6 +1,7 @@
 #include "Test.h"
 
-int main(int argc, char** argv) {
+int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
+{
 	Tester::Get().test();
 	return EXIT_SUCCESS;
 }

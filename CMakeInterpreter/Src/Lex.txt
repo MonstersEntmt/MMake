@@ -1,4 +1,4 @@
-# Line:       '(?:(<Comment>:)|(<Empty>:)|(<Rule>:)\s*(<Comment>:)?)\s*\n'
+# Line:         '(?:(<Comment>:)|(<Empty>:)|(<Rule>:)\s*(<Comment>:)?)\s*\n'
 # Comment:      '#.*'
 # Empty:        '\s*'
 # Rule:         '(<Identifier>:):\\s+(<Value>:)'

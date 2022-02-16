@@ -48,6 +48,8 @@ namespace CommonLexer
 		[[nodiscard]] virtual std::size_t getLineNumberFromIndex(std::size_t index)   = 0;
 		[[nodiscard]] virtual std::size_t getColumnNumberFromIndex(std::size_t index) = 0;
 
+		[[nodiscard]] SourceSpan getCompleteSpan();
+
 		[[nodiscard]] std::string getSpan(std::size_t index, std::size_t length)
 		{
 			std::size_t end = index + length;

@@ -62,7 +62,7 @@ workspace("MMake")
 		removefiles({ "*.DS_Store" })
 
 	project("MMakeLib")
-		location("MakeLib/")
+		location("MMakeLib/")
 		kind("StaticLib")
 		warnings("Extra")
 

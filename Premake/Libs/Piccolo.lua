@@ -17,11 +17,11 @@ function Piccolo:setup()
 
 	includedirs({ self.location })
 
-	files({ self.location .. "**" })
+	files({ self.location .. "/**" })
 	removefiles({ "*.DS_Store" })
 end
 
 function Piccolo:setupDep()
 	links({ self.name })
-	sysincludedirs({ self.location })
+	sysincludedirs({ self.location .. "/../" })
 end

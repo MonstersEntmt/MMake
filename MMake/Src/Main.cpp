@@ -26,9 +26,7 @@ int main(int argc, char** argv)
 	if (exit)
 		return 1;
 
-		//MMake::run();
-#ifdef MMAKE_CMAKE_INTERPRETER
+	//MMake::run();
 	MMake::runCMake();
-#endif
 	return 0;
 }

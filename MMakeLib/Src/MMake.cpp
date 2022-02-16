@@ -3,16 +3,15 @@
 #include <CommonCLI/Colors.h>
 #include <Premake/Defines.h>
 
-#ifdef MMAKE_CMAKE_INTERPRETER
-	#include <CMakeInterpreter/Lexer.h>
-	#include <CMakeInterpreter/Interpreter.h>
+#include <CMakeInterpreter/Interpreter.h>
+#include <CMakeInterpreter/Lexer.h>
+
+#if BUILD_IS_CONFIG_DEBUG
+#define PICCOLO_ENABLE_DEBUG_LIB
 #endif
 
-#if PREMAKE_IS_CONFIG_DEBUG
-	#define PICCOLO_ENABLE_DEBUG_LIB
-#endif
-
-extern "C" {
+extern "C"
+{
 #include <Piccolo/debug/disassembler.h>
 #include <Piccolo/include.h>
 #include <Piccolo/stdlib/stdlib.h>
@@ -24,11 +23,13 @@ extern "C" {
 #include <iostream>
 #include <sstream>
 
-namespace MMake {
-	static void printPiccoloError(const char* format, std::va_list args) {
+namespace MMake
+{
+	static void printPiccoloError(const char* format, std::va_list args)
+	{
 		std::ostringstream error;
 		error << CommonCLI::Colors::Error;
-		int size      = std::vsnprintf(nullptr, 0, format, args);
+		int   size    = std::vsnprintf(nullptr, 0, format, args);
 		char* buf     = new char[size + 2];
 		buf[size + 1] = '\0';
 		std::vsnprintf(buf, size + 1, format, args);
@@ -37,34 +38,38 @@ namespace MMake {
 		std::cout << error.str();
 	}
 
-	void run() {
+	void run()
+	{
 		piccolo_Engine* engine = new piccolo_Engine();
 		piccolo_initEngine(engine, &printPiccoloError);
 		piccolo_addIOLib(engine);
 		piccolo_addTimeLib(engine);
-#if PREMAKE_IS_CONFIG_DEBUG
+#if BUILD_IS_CONFIG_DEBUG
 		piccolo_addDebugLib(engine);
 #endif
 
 		std::filesystem::path mainPicFile = std::filesystem::current_path() / "mmake.pic";
-		piccolo_Package* package          = piccolo_loadPackage(engine, mainPicFile.string().c_str());
-		if (package->compilationError) {
+		piccolo_Package*      package     = piccolo_loadPackage(engine, mainPicFile.string().c_str());
+		if (package->compilationError)
+		{
 			piccolo_freeEngine(engine);
 			delete engine;
 			return;
 		}
 
-		if (!piccolo_executePackage(engine, package)) {
+		if (!piccolo_executePackage(engine, package))
+		{
 			piccolo_enginePrintError(engine, "Runtime error.\n");
 		}
 
 		piccolo_freeEngine(engine);
 	}
 
-#ifdef MMAKE_CMAKE_INTERPRETER
-	static void printLexNodeType(CMakeInterpreter::LexNodeType type) {
+	static void printLexNodeType(CMakeInterpreter::LexNodeType type)
+	{
 		using namespace CMakeInterpreter;
-		switch (type) {
+		switch (type)
+		{
 		case LexNodeType::File:
 			std::cout << "File";
 			break;
@@ -110,11 +115,13 @@ namespace MMake {
 		}
 	}
 
-	static void printSourceRef(CMakeInterpreter::SourceRef sourceRef) {
+	static void printSourceRef(CMakeInterpreter::SourceRef sourceRef)
+	{
 		std::cout << sourceRef.m_Index << ": " << sourceRef.m_Line << ", " << sourceRef.m_Column;
 	}
 
-	static void printLexNode(const CMakeInterpreter::LexNode& node, std::size_t tabs = 0) {
+	static void printLexNode(const CMakeInterpreter::LexNode& node, std::size_t tabs = 0)
+	{
 		std::cout << std::string(tabs, ' ');
 		printLexNodeType(node.m_Type);
 		std::cout << ": '" << node.m_Str << "' (";
@@ -126,17 +133,19 @@ namespace MMake {
 			printLexNode(child, tabs + 1);
 	}
 
-	static void printLex(const CMakeInterpreter::Lex& lex) {
+	static void printLex(const CMakeInterpreter::Lex& lex)
+	{
 		std::cout << "Lex:\n";
 		printLexNode(lex.m_Root, 1);
 	}
 
-	void runCMake() {
+	void runCMake()
+	{
 		using namespace CMakeInterpreter;
-		SourceRef begin { 0, 1, 1 };
-		SourceRef end;
+		SourceRef             begin { 0, 1, 1 };
+		SourceRef             end;
 		std::vector<LexError> errors;
-		Lex lex = lexString(R"(
+		Lex                   lex = lexString(R"(
 macro(test_macro)
 	function(test_func)
 		macro(another_macro)
@@ -154,10 +163,11 @@ message("Hello")
 test_macro()
 message("Skipped")
 )",
-		                    begin,
-		                    end,
-		                    errors);
-		if (!errors.empty()) {
+		                                      begin,
+		                                      end,
+		                                      errors);
+		if (!errors.empty())
+		{
 			for (auto& error : errors)
 				printLexError(lex, error);
 			return;
@@ -165,9 +175,9 @@ message("Skipped")
 
 		InterpreterState state { &lex };
 		state.addDefaultFunctions();
-		while (state.hasNext()) {
+		while (state.hasNext())
+		{
 			state.next();
 		}
 	}
-#endif
 } // namespace MMake
