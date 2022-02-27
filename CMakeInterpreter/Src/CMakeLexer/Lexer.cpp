@@ -97,7 +97,7 @@ namespace CMakeLexer
 		               new LexMatcherBranch(
 		                   { new LexMatcherReference("escapeSequence"),
 		                     new LexMatcherRegex("(?:[^\\s()#\\\"\\\\])+") }) });
-		registerRule({ "unquotedLegacy", new LexMatcherCallback(std::bind(&Lexer::unquotedLegacyCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5)) });
+		registerRule({ "unquotedLegacy", new LexMatcherCallback(std::bind(&Lexer::unquotedLegacyCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4)) });
 
 		registerRule({ "escapeSequence", new LexMatcherRegex("\\\\(?:[^A-Za-z0-9;]|[trn;])") });
 
@@ -108,7 +108,8 @@ namespace CMakeLexer
 		                     new LexMatcherReference("bracketArgument") }) });
 	}
 
-	CommonLexer::ELexResult Lexer::unquotedLegacyCallback(CommonLexer::Lexer& lexer, CommonLexer::Lex& lex, CommonLexer::LexNode& parentNode, CommonLexer::ISource* source, const CommonLexer::SourceSpan& span)
+	CommonLexer::LexResult Lexer::unquotedLegacyCallback(CommonLexer::Lex& lex, CommonLexer::LexNode& parentNode, CommonLexer::ISource* source, const CommonLexer::SourceSpan& span)
 	{
+		return CommonLexer::ELexStatus::Skip;
 	}
 } // namespace CMakeLexer

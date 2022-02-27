@@ -27,6 +27,6 @@ int main(int argc, char** argv)
 		return 1;
 
 	//MMake::run();
-	MMake::runCMake();
+	MMake::RunCMake();
 	return 0;
 }

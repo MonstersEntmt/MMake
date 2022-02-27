@@ -5,6 +5,7 @@
 #include <cstddef>
 
 #include <functional>
+#include <regex>
 #include <set>
 #include <string>
 #include <vector>
@@ -15,34 +16,50 @@ namespace CommonLexer
 	struct Lex;
 	struct Lexer;
 
-	enum class LexerMessageSeverity
+	enum class EMessageSeverity
 	{
 		Warning,
 		Error
 	};
 
-	struct LexerMessage
+	struct Message
 	{
 	public:
-		LexerMessage();
-		LexerMessage(const std::string& message, const SourceSpan& span, LexerMessageSeverity severity = LexerMessageSeverity::Error);
-		LexerMessage(std::string&& message, SourceSpan&& span, LexerMessageSeverity severity = LexerMessageSeverity::Error);
+		Message();
+		Message(const std::string& message, const SourceSpan& span, EMessageSeverity severity = EMessageSeverity::Error);
+		Message(std::string&& message, SourceSpan&& span, EMessageSeverity severity = EMessageSeverity::Error);
 
 		[[nodiscard]] auto& getMessage() const { return m_Message; }
 		[[nodiscard]] auto& getSpan() const { return m_Span; }
 		[[nodiscard]] auto  getSeverity() const { return m_Severity; }
 
 	private:
-		std::string          m_Message;
-		SourceSpan           m_Span;
-		LexerMessageSeverity m_Severity;
+		std::string      m_Message;
+		SourceSpan       m_Span;
+		EMessageSeverity m_Severity;
 	};
 
-	enum class ELexResult
+	enum class ELexStatus
 	{
 		Success,
 		Skip,
 		Failure
+	};
+
+	struct LexResult
+	{
+	public:
+		LexResult(ELexStatus status);
+		LexResult(ELexStatus status, const SourceSpan& span);
+		LexResult(ELexStatus status, SourceSpan&& span);
+		LexResult(const LexResult& copy)     = default;
+		LexResult(LexResult&& move) noexcept = default;
+
+		LexResult& operator=(const LexResult& copy) = default;
+		LexResult& operator=(LexResult&& move) noexcept = default;
+
+		ELexStatus m_Status;
+		SourceSpan m_Span;
 	};
 
 	struct LexNode
@@ -81,6 +98,10 @@ namespace CommonLexer
 		explicit Lex(Lexer& lexer);
 		Lex(Lexer& lexer, ISource* source);
 
+		void setSource(ISource* source);
+		void addMessage(const Message& message);
+		void addMessage(Message&& message);
+
 		[[nodiscard]] auto  getLexer() const { return m_Lexer; }
 		[[nodiscard]] auto  getSource() const { return m_Source; }
 		[[nodiscard]] auto& getRoot() { return m_Root; }
@@ -89,28 +110,28 @@ namespace CommonLexer
 		[[nodiscard]] auto& getMessages() const { return m_Messages; }
 
 	private:
-		Lexer*                    m_Lexer;
-		ISource*                  m_Source;
-		LexNode                   m_Root;
-		std::vector<LexerMessage> m_Messages;
+		Lexer*               m_Lexer;
+		ISource*             m_Source;
+		LexNode              m_Root;
+		std::vector<Message> m_Messages;
 	};
 
 	struct LexMatcher
 	{
 	public:
-		virtual ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) = 0;
+		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) = 0;
 	};
 
 	struct LexMatcherRegex : public LexMatcher
 	{
 	public:
-		LexMatcherRegex(const std::string& regex);
-		LexMatcherRegex(std::string&& regex);
+		explicit LexMatcherRegex(const std::string& regex);
+		explicit LexMatcherRegex(std::string&& regex);
 
-		virtual ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
+		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
 
 	private:
-		std::string m_Regex;
+		std::regex m_Regex;
 	};
 
 	struct LexMatcherCombination : public LexMatcher
@@ -118,8 +139,9 @@ namespace CommonLexer
 	public:
 		LexMatcherCombination(const std::vector<LexMatcher*>& matchers);
 		LexMatcherCombination(std::vector<LexMatcher*>&& matchers);
+		~LexMatcherCombination();
 
-		virtual ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
+		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
 
 	private:
 		std::vector<LexMatcher*> m_Matchers;
@@ -135,8 +157,9 @@ namespace CommonLexer
 	{
 	public:
 		LexMatcherMultiple(LexMatcher* matcher, ELexMatcherMultipleType type = ELexMatcherMultipleType::ZeroOrMore);
+		~LexMatcherMultiple();
 
-		virtual ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
+		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
 
 	private:
 		LexMatcher*             m_Matcher;
@@ -147,8 +170,9 @@ namespace CommonLexer
 	{
 	public:
 		LexMatcherOptional(LexMatcher* matcher);
+		~LexMatcherOptional();
 
-		virtual ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
+		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
 
 	private:
 		LexMatcher* m_Matcher;
@@ -159,8 +183,9 @@ namespace CommonLexer
 	public:
 		LexMatcherOr(const std::vector<LexMatcher*>& matchers);
 		LexMatcherOr(std::vector<LexMatcher*>&& matchers);
+		~LexMatcherOr();
 
-		virtual ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
+		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
 
 	private:
 		std::vector<LexMatcher*> m_Matchers;
@@ -170,8 +195,9 @@ namespace CommonLexer
 	{
 	public:
 		LexMatcherGroup(LexMatcher* matcher);
+		~LexMatcherGroup();
 
-		virtual ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
+		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
 
 	private:
 		LexMatcher* m_Matcher;
@@ -182,8 +208,9 @@ namespace CommonLexer
 	public:
 		LexMatcherBranch(const std::vector<LexMatcher*>& matchers);
 		LexMatcherBranch(std::vector<LexMatcher*>&& matchers);
+		~LexMatcherBranch();
 
-		virtual ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
+		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
 
 	private:
 		std::vector<LexMatcher*> m_Matchers;
@@ -194,8 +221,9 @@ namespace CommonLexer
 	public:
 		LexMatcherNamedGroup(const std::string& name, LexMatcher* matcher);
 		LexMatcherNamedGroup(std::string&& name, LexMatcher* matcher);
+		~LexMatcherNamedGroup();
 
-		virtual ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
+		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
 
 	private:
 		std::string m_Name;
@@ -208,7 +236,7 @@ namespace CommonLexer
 		LexMatcherNamedGroupReference(const std::string& namedGroup);
 		LexMatcherNamedGroupReference(std::string&& namedGroup);
 
-		virtual ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
+		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
 
 	private:
 		std::string m_NamedGroup;
@@ -220,7 +248,7 @@ namespace CommonLexer
 		LexMatcherReference(const std::string& rule);
 		LexMatcherReference(std::string&& rule);
 
-		virtual ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
+		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
 
 	private:
 		std::string m_Rule;
@@ -229,12 +257,13 @@ namespace CommonLexer
 	struct LexMatcherCallback : public LexMatcher
 	{
 	public:
-		using Callback = std::function<ELexResult(Lexer&, Lex&, LexNode&, ISource*, const SourceSpan&)>;
+		using Callback = std::function<LexResult(Lex&, LexNode&, ISource*, const SourceSpan&)>;
 
 	public:
-		LexMatcherCallback(Callback callback);
+		LexMatcherCallback(const Callback& callback);
+		LexMatcherCallback(Callback&& callback);
 
-		virtual ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
+		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) override;
 
 	private:
 		Callback m_Callback;
@@ -248,9 +277,9 @@ namespace CommonLexer
 		LexRule(LexRule&& move);
 		~LexRule();
 
-		auto& getName() const { return m_Name; }
+		[[no_discard]] auto& getName() const { return m_Name; }
 
-		ELexResult lex(Lexer& lexer, Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span);
+		LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span);
 
 	private:
 		std::string m_Name;
@@ -263,12 +292,20 @@ namespace CommonLexer
 	{
 	public:
 		Lex lexSource(ISource* source);
+		Lex lexSource(ISource* source, const SourceSpan& span);
 
-		void registerRule(LexRule&& rule);
-		void setMainRule(const std::string& mainRule);
+		void     registerRule(LexRule&& rule);
+		void     setMainRule(const std::string& mainRule);
+		LexRule* getRule(const std::string& rule);
+
+		void       setGroupedValue(const std::string& group, const SourceSpan& span);
+		void       setGroupedValue(std::string&& group, SourceSpan&& span);
+		SourceSpan getGroupedValue(const std::string& group) const;
 
 	private:
 		std::vector<LexRule> m_Rules;
 		std::string          m_MainRule;
+
+		std::unordered_map<std::string, SourceSpan> m_GroupedValues;
 	};
 } // namespace CommonLexer

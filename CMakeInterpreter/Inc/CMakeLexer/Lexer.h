@@ -9,6 +9,6 @@ namespace CMakeLexer
 	public:
 		Lexer();
 
-		CommonLexer::ELexResult unquotedLegacyCallback(CommonLexer::Lexer& lexer, CommonLexer::Lex& lex, CommonLexer::LexNode& parentNode, CommonLexer::ISource* source, const CommonLexer::SourceSpan& span);
+		CommonLexer::LexResult unquotedLegacyCallback(CommonLexer::Lex& lex, CommonLexer::LexNode& parentNode, CommonLexer::ISource* source, const CommonLexer::SourceSpan& span);
 	};
 } // namespace CMakeLexer

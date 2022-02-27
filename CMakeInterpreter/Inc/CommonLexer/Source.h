@@ -5,22 +5,70 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace CommonLexer
 {
+	class ISource;
+
 	struct SourcePoint
 	{
 	public:
 		SourcePoint();
 		SourcePoint(std::size_t index, std::size_t line, std::size_t column);
-		SourcePoint(const SourcePoint&) = default;
-		SourcePoint(SourcePoint&&)      = default;
+		SourcePoint(const SourcePoint&)     = default;
+		SourcePoint(SourcePoint&&) noexcept = default;
+
 		SourcePoint& operator=(const SourcePoint&) = default;
-		SourcePoint& operator=(SourcePoint&&) = default;
+		SourcePoint& operator=(SourcePoint&&) noexcept = default;
 
 	public:
 		std::size_t m_Index, m_Line, m_Column;
+	};
+
+	struct SourceIterator
+	{
+	public:
+		using value_type        = char;
+		using difference_type   = std::size_t;
+		using reference         = char&;
+		using pointer           = char*;
+		using iterator_category = std::bidirectional_iterator_tag;
+
+		SourceIterator();
+		SourceIterator(ISource* source, const SourcePoint& point);
+		SourceIterator(ISource* source, SourcePoint&& point);
+		SourceIterator(const SourceIterator& copy)     = default;
+		SourceIterator(SourceIterator&& move) noexcept = default;
+
+		SourceIterator& operator=(const SourceIterator& copy) = default;
+		SourceIterator& operator=(SourceIterator&& move) noexcept = default;
+
+		[[no_discard]] operator SourcePoint() const { return m_Point; }
+
+		char operator*();
+
+		SourceIterator& operator++();
+		SourceIterator  operator++(int);
+		SourceIterator& operator--();
+		SourceIterator  operator--(int);
+
+		SourceIterator& operator+=(std::size_t count);
+		SourceIterator& operator-=(std::size_t count);
+
+		bool operator==(const SourceIterator& other) const;
+		bool operator!=(const SourceIterator& other) const;
+		bool operator<(const SourceIterator& other) const;
+		bool operator<=(const SourceIterator& other) const;
+		bool operator>(const SourceIterator& other) const;
+		bool operator>=(const SourceIterator& other) const;
+
+	private:
+		ISource*    m_Source;
+		SourcePoint m_Point;
+		std::size_t m_CachedOffset;
+		std::string m_Cached;
 	};
 
 	struct SourceSpan
@@ -29,11 +77,16 @@ namespace CommonLexer
 		SourceSpan();
 		SourceSpan(const SourcePoint& begin, const SourcePoint& end);
 		SourceSpan(SourcePoint&& begin, SourcePoint&& end);
-		SourceSpan(const SourceSpan&) = default;
-		SourceSpan(SourceSpan&&)      = default;
+		SourceSpan(const SourceSpan&)     = default;
+		SourceSpan(SourceSpan&&) noexcept = default;
 
 		SourceSpan& operator=(const SourceSpan&) = default;
-		SourceSpan& operator=(SourceSpan&&) = default;
+		SourceSpan& operator=(SourceSpan&&) noexcept = default;
+
+		SourceIterator begin(ISource* source) const;
+		SourceIterator end(ISource* source) const;
+
+		std::size_t length() const;
 
 	public:
 		SourcePoint m_Begin, m_End;
@@ -106,6 +159,9 @@ namespace CommonLexer
 		std::string              getSpan(const SourceSpan& span) override;
 		std::string              getLine(const SourcePoint& point) override;
 		std::vector<std::string> getLines(std::size_t startLine, std::size_t lines) override;
+
+	private:
+		void setupLineToIndex();
 
 	private:
 		std::filesystem::path    m_Filepath;

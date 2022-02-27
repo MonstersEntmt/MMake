@@ -12,6 +12,106 @@ namespace CommonLexer
 	SourcePoint::SourcePoint(std::size_t index, std::size_t line, std::size_t column)
 	    : m_Index(index), m_Line(line), m_Column(column) {}
 
+	SourceIterator::SourceIterator()
+	    : m_Source(nullptr), m_Point({}), m_CachedOffset(0) {}
+
+	SourceIterator::SourceIterator(ISource* source, const SourcePoint& point)
+	    : m_Source(nullptr), m_Point(point), m_CachedOffset(0) {}
+
+	SourceIterator::SourceIterator(ISource* source, SourcePoint&& point)
+	    : m_Source(source), m_Point(std::move(point)), m_CachedOffset(0) {}
+
+	char SourceIterator::operator*()
+	{
+		if (m_CachedOffset >= m_Cached.size())
+		{
+			m_Cached       = m_Source->getSpan(m_Point.m_Index - 128, 256);
+			m_CachedOffset = 0;
+		}
+
+		m_Cached[m_CachedOffset];
+	}
+
+	SourceIterator& SourceIterator::operator++()
+	{
+		++m_CachedOffset;
+		++m_Point.m_Index;
+		m_Point.m_Column = m_Source->getColumnNumberFromIndex(m_Point.m_Index);
+		m_Point.m_Line   = m_Source->getLineNumberFromIndex(m_Point.m_Index);
+		return *this;
+	}
+
+	SourceIterator SourceIterator::operator++(int)
+	{
+		auto c = *this;
+		++(*this);
+		return c;
+	}
+
+	SourceIterator& SourceIterator::operator--()
+	{
+		--m_CachedOffset;
+		--m_Point.m_Index;
+		m_Point.m_Column = m_Source->getColumnNumberFromIndex(m_Point.m_Index);
+		m_Point.m_Line   = m_Source->getLineNumberFromIndex(m_Point.m_Index);
+		return *this;
+	}
+
+	SourceIterator SourceIterator::operator--(int)
+	{
+		auto c = *this;
+		--(*this);
+		return c;
+	}
+
+	SourceIterator& SourceIterator::operator+=(std::size_t count)
+	{
+		m_CachedOffset += count;
+		m_Point.m_Index += count;
+		m_Point.m_Column = m_Source->getColumnNumberFromIndex(m_Point.m_Index);
+		m_Point.m_Line   = m_Source->getLineNumberFromIndex(m_Point.m_Index);
+		return *this;
+	}
+
+	SourceIterator& SourceIterator::operator-=(std::size_t count)
+	{
+		m_CachedOffset -= count;
+		m_Point.m_Index -= count;
+		m_Point.m_Column = m_Source->getColumnNumberFromIndex(m_Point.m_Index);
+		m_Point.m_Line   = m_Source->getLineNumberFromIndex(m_Point.m_Index);
+		return *this;
+	}
+
+	bool SourceIterator::operator==(const SourceIterator& other) const
+	{
+		return m_Point.m_Index == other.m_Point.m_Index;
+	}
+
+	bool SourceIterator::operator!=(const SourceIterator& other) const
+	{
+		return m_Point.m_Index != other.m_Point.m_Index;
+	}
+
+	bool SourceIterator::operator<(const SourceIterator& other) const
+	{
+		return m_Point.m_Index < other.m_Point.m_Index;
+	}
+
+	bool SourceIterator::operator<=(const SourceIterator& other) const
+	{
+		return m_Point.m_Index <= other.m_Point.m_Index;
+	}
+
+	bool SourceIterator::operator>(const SourceIterator& other) const
+	{
+		return m_Point.m_Index > other.m_Point.m_Index;
+	}
+
+	bool SourceIterator::operator>=(const SourceIterator& other) const
+	{
+		return m_Point.m_Index >= other.m_Point.m_Index;
+	}
+
 	SourceSpan::SourceSpan()
 	    : m_Begin({}), m_End({}) {}
 
@@ -20,6 +120,21 @@ namespace CommonLexer
 
 	SourceSpan::SourceSpan(SourcePoint&& begin, SourcePoint&& end)
 	    : m_Begin(std::move(begin)), m_End(std::move(end)) {}
+
+	SourceIterator SourceSpan::begin(ISource* source) const
+	{
+		return { source, m_Begin };
+	}
+
+	SourceIterator SourceSpan::end(ISource* source) const
+	{
+		return { source, m_End };
+	}
+
+	std::size_t SourceSpan::length() const
+	{
+		return m_End.m_Index - m_Begin.m_Index;
+	}
 
 	SourceSpan ISource::getCompleteSpan()
 	{
@@ -115,6 +230,8 @@ namespace CommonLexer
 	{
 		m_Size = m_Stream.tellg();
 		m_Stream.seekg(0);
+
+		setupLineToIndex();
 	}
 
 	FileSource::~FileSource()
@@ -195,5 +312,21 @@ namespace CommonLexer
 		for (std::size_t line = startLine, end = startLine + lines; line != end; ++line)
 			lns.push_back(std::move(ISource::getLine(line)));
 		return lns;
+	}
+
+	void FileSource::setupLineToIndex()
+	{
+		m_LineToIndex.emplace_back(0);
+		char* buf = new char[32767];
+
+		std::size_t offset = 0;
+		while (offset < m_Size)
+		{
+			auto readCount = m_Stream.readsome(buf, sizeof(buf));
+			for (std::size_t i = 0; i < sizeof(buf); ++i)
+				if (buf[i] == '\n')
+					m_LineToIndex.emplace_back(offset + i + 1);
+			offset += readCount;
+		}
 	}
 } // namespace CommonLexer

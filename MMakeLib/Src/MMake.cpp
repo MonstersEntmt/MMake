@@ -3,8 +3,7 @@
 #include <CommonCLI/Colors.h>
 #include <Premake/Defines.h>
 
-#include <CMakeInterpreter/Interpreter.h>
-#include <CMakeInterpreter/Lexer.h>
+#include <CMakeLexer/Lexer.h>
 
 #if BUILD_IS_CONFIG_DEBUG
 #define PICCOLO_ENABLE_DEBUG_LIB
@@ -25,7 +24,7 @@ extern "C"
 
 namespace MMake
 {
-	static void printPiccoloError(const char* format, std::va_list args)
+	static void PrintPiccoloError(const char* format, std::va_list args)
 	{
 		std::ostringstream error;
 		error << CommonCLI::Colors::Error;
@@ -38,10 +37,10 @@ namespace MMake
 		std::cout << error.str();
 	}
 
-	void run()
+	void Run()
 	{
 		piccolo_Engine* engine = new piccolo_Engine();
-		piccolo_initEngine(engine, &printPiccoloError);
+		piccolo_initEngine(engine, &PrintPiccoloError);
 		piccolo_addIOLib(engine);
 		piccolo_addTimeLib(engine);
 #if BUILD_IS_CONFIG_DEBUG
@@ -65,87 +64,46 @@ namespace MMake
 		piccolo_freeEngine(engine);
 	}
 
-	static void printLexNodeType(CMakeInterpreter::LexNodeType type)
+	void PrintMessage(const CommonLexer::Message& message, CommonLexer::ISource* source)
 	{
-		using namespace CMakeInterpreter;
-		switch (type)
+		std::ostringstream str;
+		switch (message.getSeverity())
 		{
-		case LexNodeType::File:
-			std::cout << "File";
+		case CommonLexer::EMessageSeverity::Warning:
+			str << CommonCLI::Colors::Warn << "CMakeLexer Warning: ";
 			break;
-		case LexNodeType::CommandInvocation:
-			std::cout << "CommandInvocation";
-			break;
-		case LexNodeType::Identifier:
-			std::cout << "Identifier";
-			break;
-		case LexNodeType::Arguments:
-			std::cout << "Arguments";
-			break;
-		case LexNodeType::BracketContent:
-			std::cout << "BracketContent";
-			break;
-		case LexNodeType::QuotedArgument:
-			std::cout << "QuotedArgument";
-			break;
-		case LexNodeType::QuotedElement:
-			std::cout << "QuotedElement";
-			break;
-		case LexNodeType::UnquotedArgument:
-			std::cout << "UnquotedArgument";
-			break;
-		case LexNodeType::UnquotedElement:
-			std::cout << "UnquotedElement";
-			break;
-		case LexNodeType::UnquotedLegacy:
-			std::cout << "UnquotedLegacy";
-			break;
-		case LexNodeType::EscapeIdentity:
-			std::cout << "EscapeIdentity";
-			break;
-		case LexNodeType::EscapeEncoded:
-			std::cout << "EscapeEncoded";
-			break;
-		case LexNodeType::EscapeSemicolon:
-			std::cout << "EscapeSemicolon";
-			break;
-		default:
-			std::cout << "Unknown";
+		case CommonLexer::EMessageSeverity::Error:
+			str << CommonCLI::Colors::Warn << "CMakeLexer Error: ";
 			break;
 		}
+		str << message.getMessage() << ANSI::GraphicsForegroundDefault << '\n';
+
+		auto& span  = message.getSpan();
+		auto  lines = source->getLines(span.m_Begin.m_Line, span.m_End.m_Line - span.m_Begin.m_Line);
+		for (std::size_t i = 0; i < lines.size(); ++i)
+		{
+			auto& line = lines[i];
+			str << line << '\n';
+			if (i == 0)
+				str << CommonCLI::Colors::Note << std::string(span.m_Begin.m_Column - 1, ' ') << '^' << std::string(line.size() - span.m_Begin.m_Column, '~');
+			else if (i == lines.size() - 1)
+				str << CommonCLI::Colors::Note << std::string(span.m_End.m_Column, '~');
+			else
+				str << CommonCLI::Colors::Note << std::string(line.size(), '~');
+			str << ANSI::GraphicsBackgroundDefault << '\n';
+		}
+
+		std::cout << str.str();
 	}
 
-	static void printSourceRef(CMakeInterpreter::SourceRef sourceRef)
+	void PrintLex(const CommonLexer::Lex& lex, CommonLexer::ISource* source)
 	{
-		std::cout << sourceRef.m_Index << ": " << sourceRef.m_Line << ", " << sourceRef.m_Column;
+		
 	}
 
-	static void printLexNode(const CMakeInterpreter::LexNode& node, std::size_t tabs = 0)
+	void RunCMake()
 	{
-		std::cout << std::string(tabs, ' ');
-		printLexNodeType(node.m_Type);
-		std::cout << ": '" << node.m_Str << "' (";
-		printSourceRef(node.m_Begin);
-		std::cout << " <-> ";
-		printSourceRef(node.m_End);
-		std::cout << ")\n";
-		for (auto& child : node.m_Children)
-			printLexNode(child, tabs + 1);
-	}
-
-	static void printLex(const CMakeInterpreter::Lex& lex)
-	{
-		std::cout << "Lex:\n";
-		printLexNode(lex.m_Root, 1);
-	}
-
-	void runCMake()
-	{
-		using namespace CMakeInterpreter;
-		SourceRef             begin { 0, 1, 1 };
-		SourceRef             end;
-		std::vector<LexError> errors;
-		Lex                   lex = lexString(R"(
+		CommonLexer::StringSource source { R"(
 macro(test_macro)
 	function(test_func)
 		macro(another_macro)
@@ -162,22 +120,19 @@ endmacro()
 message("Hello")
 test_macro()
 message("Skipped")
-)",
-		                                      begin,
-		                                      end,
-		                                      errors);
-		if (!errors.empty())
+)" };
+
+		CMakeLexer::Lexer lexer;
+
+		auto lex = lexer.lexSource(&source);
+
+		if (!lex.getMessages().empty())
 		{
-			for (auto& error : errors)
-				printLexError(lex, error);
+			for (auto& message : lex.getMessages())
+				PrintMessage(message, &source);
 			return;
 		}
 
-		InterpreterState state { &lex };
-		state.addDefaultFunctions();
-		while (state.hasNext())
-		{
-			state.next();
-		}
+		PrintLex(lex, &source);
 	}
 } // namespace MMake

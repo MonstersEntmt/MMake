@@ -2,7 +2,7 @@
 
 namespace MMake
 {
-	void run();
+	void Run();
 
-	void runCMake();
+	void RunCMake();
 } // namespace MMake
