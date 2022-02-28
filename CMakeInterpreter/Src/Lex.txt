@@ -1,59 +1,69 @@
-# Line:         '(?:(<Comment>:)|(<Empty>:)|(<Rule>:)\s*(<Comment>:)?)\s*\n'
-# Comment:      '#.*'
-# Empty:        '\s*'
-# Rule:         '(<Identifier>:):\\s+(<Value>:)'
-# Rule:         '(<Identifier>:)\\?:\\s+(<Value>:)'
+# Line:         Comment | Empty | Rule '\s*' Comment '\s*\n'
+# Comment?:      '#.*'
+# Empty?:        '\s*'
+# Rule:         NodeRule | NonNodeRule
+# NodeRule:     Identifier ':\s+' Value
+# NonNodeRule:  Identifier '\?:\s+' Value
 # Identifier:   '[A-Za-z_][A-Za-z0-9_]*'
-# Value: one of
-#   Identifier:  '(<Identifier>:)'
-#   Regex:       '\'(?:[^\'\\]|\\.|\\\n)*\''
-#   Combination: '(<Value>:)\\s+(<Value>:)'
-#   Regex *:     '(<Value>:)*'
-#   Regex +:     '(<Value>:)+'
-#   Regex ?:     '(<Value>:)?'
-#   Or:          '(<Value>:)\\s*\\|\\s*(<Value>:)'
-#   Group:       '\\(\\s*(<Value>:)\\s*\\)'
-#   Branch:      '(<Value>:)\n\s+(<Value>:)'
-#   NamedGroup:  '\\(<(<Identifier>:)>:\\s*(<Value>:)\\)'
-#   Reference:   '\\\\(<Identifier>:)'
+# Value:        Identifier
+#               Regex
+#               Combination
+#               Or
+#               ZeroOrMore
+#               OneOrMore
+#               Optional
+#               Group
+#               Branch
+#               NamedGroup
+#               Reference
+# Regex:        '\'(?:[^\'\\]|\.|\n)*\''
+# Combination:  Value ('\s+' Value)*
+# Or:           Value ('\s*\|\s*' Value)*
+# ZeroOrMore:   Value '\*'
+# OneOrMore:    Value '\+'
+# Optional:     Value '\?'
+# Group:        '\(\s*' Value '\s*\)'
+# Branch:       Value ('\n\s+' Value)*
+# NamedGroup:   '\(\s*<\s*' Identifier '\s*>\s*:\s*' Value '\s*\)'
+# Reference:    '\\' Identifier
 
-file:        fileElement*
-fileElement: commandInvocation lineEnding
-             (bracketComment | space)* lineEnding
-lineEnding:  lineComment? newline
-space?:      (' ' | '\t')+
-newline?:    '\n'
+File:        FileElement*
+FileElement: CommandInvocation LineEnding
+             (BracketComment | Space)* LineEnding
+LineEnding:  LineComment? Newline
+Space?:      (' ' | '\t')+
+Newline?:    '\n'
 
-commandInvocation:  space* identifier space* '\\(' arguments '\\)'
-identifier:         '[A-Za-z_][A-Za-z0-9_]*'
-arguments:          argument? separatedArguments*
-separatedArguments: separation+ argument?
-					separation* '\\(' arguments '\\)'
-separation?:        space
-                    lineEnding
+CommandInvocation:  Space* Identifier Space* '\\(' Arguments '\\)'
+Identifier:         '[A-Za-z_][A-Za-z0-9_]*'
+Arguments:          Argument? SeparatedArguments*
+SeparatedArguments: Separation+ Argument?
+					Separation* '\\(' Arguments '\\)'
+Separation?:        Space
+                    LineEnding
 
-argument: bracketArgument
-          quotedArgument
-          unquotedArgument
+Argument: BracketArgument
+          QuotedArgument
+          UnquotedArgument
 
-bracketArgument: bracketOpen bracketContent bracketClose
-bracketOpen?:    '\\[' (<BracketCount>: '='*) '\\['
-bracketContent:  ('.' | newline)*
-bracketClose?:   '\\]' \BracketCount '\\]'
+BracketArgument: BracketOpen BracketContent BracketClose
+BracketOpen?:    '\\[' (<BracketCount>: '='*) '\\['
+BracketContent:  ('.' | Newline)*
+BracketClose?:   '\\]' \BracketCount '\\]'
 
-quotedArgument:     '"' quotedElement* '"'
-quotedElement:      escapeSequence
-                    quotedContinuation
-                    (newline | '[^"\\]')*
-quotedContinuation: '\\' newline
+QuotedArgument:     '"' QuotedElement* '"'
+QuotedElement:      EscapeSequence
+                    QuotedContinuation
+                    (newline | '[^"\\]')+
+QuotedContinuation: '\\' Newline
 
-unquotedArgument: unquotedElement+
-                  unqoutedLegacy
-unqoutedElement:  escapeSequence
+UnquotedArgument: UnquotedElement+
+                  UnqoutedLegacy
+UnqoutedElement:  EscapeSequence
                   '(?:[^\\s()#"\\\\])+'
-unquotedLegacy:   <TODO: IDK WHAT THIS IS FUCK CMAKE DOCS>
+UnquotedLegacy:   <TODO: IDK WHAT THIS IS FUCK CMAKE DOCS>
 
-escapeSequence:  '\\(?:[^A-Za-z0-9;]|[trn;])'
+EscapeSequence:  '\\(?:[^A-Za-z0-9;]|[trn;])'
 
-lineComment:    '#(?!\\[=*\\[).*'
-bracketComment: '#' bracketArgument
+LineComment:    '#(?!\\[=*\\[).*'
+BracketComment: '#' BracketArgument

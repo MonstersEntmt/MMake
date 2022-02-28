@@ -1,24 +1,21 @@
 if not libs then libs = {} end
-if not libs.CommonCLI then
-	libs.CommonCLI = {
+if not libs.CMakeInterpreter then
+	libs.CMakeInterpreter = {
 		name       = "",
 		location   = ""
 	}
 end
 
-local CommonCLI = libs.CommonCLI
+local CMakeInterpreter = libs.CMakeInterpreter
 
-function CommonCLI:setup()
+function CMakeInterpreter:setup()
 	self.name     = common:projectName()
 	self.location = common:projectLocation()
 
 	kind("StaticLib")
 	common:outDirs(true)
 
-	includedirs({
-		self.location .. "/Inc/",
-		self.location .. "/Src/"
-	})
+	includedirs({ self.location .. "/Inc/" })
 
 	files({
 		self.location .. "/Inc/**",
@@ -27,7 +24,7 @@ function CommonCLI:setup()
 	removefiles({ "*.DS_Store" })
 end
 
-function CommonCLI:setupDep()
+function CMakeInterpreter:setupDep()
 	links({ self.name })
 	sysincludedirs({ self.location .. "/Inc/" })
 end

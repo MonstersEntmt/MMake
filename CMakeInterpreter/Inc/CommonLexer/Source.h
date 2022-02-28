@@ -45,9 +45,9 @@ namespace CommonLexer
 		SourceIterator& operator=(const SourceIterator& copy) = default;
 		SourceIterator& operator=(SourceIterator&& move) noexcept = default;
 
-		[[no_discard]] operator SourcePoint() const { return m_Point; }
+		[[nodiscard]] operator SourcePoint() const { return m_Point; }
 
-		char operator*();
+		char operator*() const;
 
 		SourceIterator& operator++();
 		SourceIterator  operator++(int);
@@ -63,6 +63,9 @@ namespace CommonLexer
 		bool operator<=(const SourceIterator& other) const;
 		bool operator>(const SourceIterator& other) const;
 		bool operator>=(const SourceIterator& other) const;
+
+	private:
+		void movePoint(std::size_t count, bool negative = false);
 
 	private:
 		ISource*    m_Source;

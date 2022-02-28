@@ -1,25 +1,22 @@
-#include "MMake/MMake.h"
+﻿#include "MMake/MMake.h"
 
 #include <CommonCLI/Colors.h>
-#include <Premake/Defines.h>
+#include <CommonCLI/Core.h>
 
 #include <CMakeLexer/Lexer.h>
-
-#if BUILD_IS_CONFIG_DEBUG
-#define PICCOLO_ENABLE_DEBUG_LIB
-#endif
 
 extern "C"
 {
 #include <Piccolo/debug/disassembler.h>
 #include <Piccolo/include.h>
-#include <Piccolo/stdlib/stdlib.h>
+#include <Piccolo/stdlib/picStdlib.h>
 }
 
 #include <cstdarg>
 
 #include <filesystem>
 #include <iostream>
+#include <regex>
 #include <sstream>
 
 namespace MMake
@@ -43,9 +40,6 @@ namespace MMake
 		piccolo_initEngine(engine, &PrintPiccoloError);
 		piccolo_addIOLib(engine);
 		piccolo_addTimeLib(engine);
-#if BUILD_IS_CONFIG_DEBUG
-		piccolo_addDebugLib(engine);
-#endif
 
 		std::filesystem::path mainPicFile = std::filesystem::current_path() / "mmake.pic";
 		piccolo_Package*      package     = piccolo_loadPackage(engine, mainPicFile.string().c_str());
@@ -96,9 +90,54 @@ namespace MMake
 		std::cout << str.str();
 	}
 
-	void PrintLex(const CommonLexer::Lex& lex, CommonLexer::ISource* source)
+	std::string EscapeString(const std::string& str)
 	{
-		
+		return std::regex_replace(str, std::regex { "\"" }, "\\\"");
+	}
+
+	void PrintLexNode(const CommonLexer::LexNode& node, std::vector<bool>& layers, bool end = true)
+	{
+		std::ostringstream str;
+
+		for (auto layer : layers)
+		{
+			if (layer)
+				str << "\xE2\x94\x82 ";
+			else
+				str << "  ";
+		}
+
+		if (end)
+			str << "\xE2\x94\x94\xE2\x94\x80";
+		else
+			str << "\xE2\x94\x9C\xE2\x94\x80";
+
+		layers.push_back(!end);
+
+		auto& span = node.getSpan();
+		str << node.getRule() << " (" << span.m_Begin.m_Line << ":" << span.m_Begin.m_Column << " -> " << span.m_End.m_Line << ":" << span.m_End.m_Column << ')';
+		if (span.m_Begin.m_Line == span.m_End.m_Line)
+		{
+			std::string s = node.getSource()->getSpan(span);
+			if (s.find_first_of('\n') < s.size())
+				str << '\n';
+			else
+				str << " : \"" << EscapeString(s) << "\"\n";
+		}
+		else
+			str << '\n';
+		std::cout << str.str();
+		auto& children = node.getChildren();
+		for (std::size_t i = 0; i < children.size(); ++i)
+			PrintLexNode(children[i], layers, i >= children.size() - 1);
+
+		layers.pop_back();
+	}
+
+	void PrintLex(const CommonLexer::Lex& lex)
+	{
+		std::vector<bool> layers;
+		PrintLexNode(lex.getRoot(), layers);
 	}
 
 	void RunCMake()
@@ -133,6 +172,6 @@ message("Skipped")
 			return;
 		}
 
-		PrintLex(lex, &source);
+		PrintLex(lex);
 	}
 } // namespace MMake

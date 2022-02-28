@@ -14,7 +14,7 @@ namespace CommonLexer
 {
 	struct LexNode;
 	struct Lex;
-	struct Lexer;
+	class Lexer;
 
 	enum class EMessageSeverity
 	{
@@ -119,6 +119,8 @@ namespace CommonLexer
 	struct LexMatcher
 	{
 	public:
+		virtual ~LexMatcher() = default;
+
 		virtual LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span) = 0;
 	};
 
@@ -274,10 +276,10 @@ namespace CommonLexer
 	public:
 		LexRule(const std::string& name, LexMatcher* matcher, bool createNode = true);
 		LexRule(std::string&& name, LexMatcher* matcher, bool createNode = true);
-		LexRule(LexRule&& move);
+		LexRule(LexRule&& move) noexcept;
 		~LexRule();
 
-		[[no_discard]] auto& getName() const { return m_Name; }
+		[[nodiscard]] auto& getName() const { return m_Name; }
 
 		LexResult lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span);
 

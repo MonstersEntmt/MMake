@@ -89,15 +89,15 @@ namespace CommonLexer
 	}
 
 	LexMatcherRegex::LexMatcherRegex(const std::string& regex)
-	    : m_Regex("^" + regex, std::regex_constants::ECMAScript | std::regex_constants::optimize) {}
+	    : m_Regex(regex, std::regex_constants::ECMAScript | std::regex_constants::optimize) {}
 
 	LexMatcherRegex::LexMatcherRegex(std::string&& regex)
-	    : m_Regex("^" + std::move(regex), std::regex_constants::ECMAScript | std::regex_constants::optimize) {}
+	    : m_Regex(std::move(regex), std::regex_constants::ECMAScript | std::regex_constants::optimize) {}
 
-	LexResult LexMatcherRegex::lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span)
+	LexResult LexMatcherRegex::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
 		std::match_results<SourceIterator> results;
-		if (std::regex_search(span.begin(source), span.end(source), results, m_Regex))
+		if (std::regex_search(span.begin(source), span.end(source), results, m_Regex, std::regex_constants::match_continuous))
 			return { ELexStatus::Success, { results[0].first, results[0].second } };
 		return ELexStatus::Failure;
 	}
@@ -115,7 +115,7 @@ namespace CommonLexer
 		m_Matchers.clear();
 	}
 
-	LexResult LexMatcherCombination::lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span)
+	LexResult LexMatcherCombination::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
 		SourceSpan totalSpan = { span.m_Begin, span.m_Begin };
 		SourceSpan subSpan   = span;
@@ -124,11 +124,8 @@ namespace CommonLexer
 			auto result = matcher->lex(lex, parentNode, source, subSpan);
 			switch (result.m_Status)
 			{
-			case ELexStatus::Failure:
-				return ELexStatus::Failure;
-			case ELexStatus::Skip:
-				// TODO(MarcasRealAccount): WTF should I do here???
-				return ELexStatus::Skip;
+			case ELexStatus::Failure: return ELexStatus::Failure;
+			case ELexStatus::Skip: continue;
 			case ELexStatus::Success:
 				subSpan.m_Begin = result.m_Span.m_End;
 				totalSpan.m_End = result.m_Span.m_End;
@@ -146,7 +143,7 @@ namespace CommonLexer
 		delete m_Matcher;
 	}
 
-	LexResult LexMatcherMultiple::lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span)
+	LexResult LexMatcherMultiple::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
 		std::size_t matches   = 0;
 		SourceSpan  totalSpan = { span.m_Begin, span.m_Begin };
@@ -160,14 +157,17 @@ namespace CommonLexer
 
 			subSpan.m_Begin = result.m_Span.m_End;
 			totalSpan.m_End = result.m_Span.m_End;
+			++matches;
+
+			if (subSpan.m_Begin.m_Index == subSpan.m_End.m_Index)
+				break;
 		}
 
 		switch (m_Type)
 		{
-		case ELexMatcherMultipleType::OneOrMore:
-			return matches > 0 ? LexResult { ELexStatus::Success, totalSpan } : ELexStatus::Failure;
-		case ELexMatcherMultipleType::ZeroOrMore:
-			return { ELexStatus::Success, totalSpan };
+		case ELexMatcherMultipleType::OneOrMore: return matches > 0 ? LexResult { ELexStatus::Success, totalSpan } : ELexStatus::Failure;
+		case ELexMatcherMultipleType::ZeroOrMore: return { ELexStatus::Success, totalSpan };
+		default: return ELexStatus::Failure;
 		}
 	}
 
@@ -179,17 +179,15 @@ namespace CommonLexer
 		delete m_Matcher;
 	}
 
-	LexResult LexMatcherOptional::lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span)
+	LexResult LexMatcherOptional::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
 		auto result = m_Matcher->lex(lex, parentNode, source, span);
 		switch (result.m_Status)
 		{
-		case ELexStatus::Success:
-			return result;
-		case ELexStatus::Skip: [[fallthrough]];
-		case ELexStatus::Failure:
-			return ELexStatus::Skip;
-			return ELexStatus::Skip;
+		case ELexStatus::Failure: [[fallthrough]];
+		case ELexStatus::Skip: return ELexStatus::Skip;
+		case ELexStatus::Success: return result;
+		default: return ELexStatus::Skip;
 		}
 	}
 
@@ -206,7 +204,7 @@ namespace CommonLexer
 		m_Matchers.clear();
 	}
 
-	LexResult LexMatcherOr::lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span)
+	LexResult LexMatcherOr::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
 		ELexStatus status       = ELexStatus::Failure;
 		SourceSpan smallestSpan = span;
@@ -227,6 +225,7 @@ namespace CommonLexer
 		case ELexStatus::Failure: return ELexStatus::Failure;
 		case ELexStatus::Skip: return ELexStatus::Skip;
 		case ELexStatus::Success: return { ELexStatus::Success, smallestSpan };
+		default: return ELexStatus::Failure;
 		}
 	}
 
@@ -238,7 +237,7 @@ namespace CommonLexer
 		delete m_Matcher;
 	}
 
-	LexResult LexMatcherGroup::lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span)
+	LexResult LexMatcherGroup::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
 		return m_Matcher->lex(lex, parentNode, source, span);
 	}
@@ -256,7 +255,7 @@ namespace CommonLexer
 		m_Matchers.clear();
 	}
 
-	LexResult LexMatcherBranch::lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span)
+	LexResult LexMatcherBranch::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
 		ELexStatus status       = ELexStatus::Failure;
 		SourceSpan smallestSpan = span;
@@ -277,6 +276,7 @@ namespace CommonLexer
 		case ELexStatus::Failure: return ELexStatus::Failure;
 		case ELexStatus::Skip: return ELexStatus::Skip;
 		case ELexStatus::Success: return { ELexStatus::Success, smallestSpan };
+		default: return ELexStatus::Failure;
 		}
 	}
 
@@ -291,7 +291,7 @@ namespace CommonLexer
 		delete m_Matcher;
 	}
 
-	LexResult LexMatcherNamedGroup::lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span)
+	LexResult LexMatcherNamedGroup::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
 		auto result = m_Matcher->lex(lex, parentNode, source, span);
 		switch (result.m_Status)
@@ -301,6 +301,7 @@ namespace CommonLexer
 		case ELexStatus::Success:
 			lex.getLexer()->setGroupedValue(m_Name, result.m_Span);
 			return { ELexStatus::Success, result.m_Span };
+		default: return ELexStatus::Failure;
 		}
 	}
 
@@ -310,7 +311,7 @@ namespace CommonLexer
 	LexMatcherNamedGroupReference::LexMatcherNamedGroupReference(std::string&& namedGroup)
 	    : m_NamedGroup(std::move(namedGroup)) {}
 
-	LexResult LexMatcherNamedGroupReference::lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span)
+	LexResult LexMatcherNamedGroupReference::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
 		auto value = lex.getLexer()->getGroupedValue(m_NamedGroup);
 		if (value.length() > span.length())
@@ -337,7 +338,7 @@ namespace CommonLexer
 	LexMatcherReference::LexMatcherReference(std::string&& rule)
 	    : m_Rule(std::move(rule)) {}
 
-	LexResult LexMatcherReference::lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span)
+	LexResult LexMatcherReference::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
 		auto rule = lex.getLexer()->getRule(m_Rule);
 		if (!rule)
@@ -352,7 +353,7 @@ namespace CommonLexer
 	LexMatcherCallback::LexMatcherCallback(Callback&& callback)
 	    : m_Callback(std::move(callback)) {}
 
-	LexResult LexMatcherCallback::lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span)
+	LexResult LexMatcherCallback::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
 		return m_Callback(lex, parentNode, source, span);
 	}
@@ -363,7 +364,7 @@ namespace CommonLexer
 	LexRule::LexRule(std::string&& name, LexMatcher* matcher, bool createNode)
 	    : m_Name(std::move(name)), m_Matcher(matcher), m_CreateNode(createNode) {}
 
-	LexRule::LexRule(LexRule&& move)
+	LexRule::LexRule(LexRule&& move) noexcept
 	    : m_Name(std::move(move.m_Name)), m_Matcher(move.m_Matcher), m_CreateNode(move.m_CreateNode)
 	{
 		move.m_Matcher = nullptr;
@@ -374,21 +375,30 @@ namespace CommonLexer
 		delete m_Matcher;
 	}
 
-	LexResult LexRule::lex(Lex& lex, LexNode& parentNode, ISource* source, const SourceSpan& span)
+	LexResult LexRule::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
-		auto result = m_Matcher->lex(lex, parentNode, source, span);
+		LexResult result = ELexStatus::Failure;
+		if (m_CreateNode)
+		{
+			LexNode currentNode { *lex.getLexer(), m_Name };
+			result = m_Matcher->lex(lex, currentNode, source, span);
+			if (result.m_Status == ELexStatus::Success)
+			{
+				currentNode.setSourceSpan(source, result.m_Span);
+				parentNode.addChild(std::move(currentNode));
+			}
+		}
+		else
+		{
+			result = m_Matcher->lex(lex, parentNode, source, span);
+		}
+
 		switch (result.m_Status)
 		{
 		case ELexStatus::Failure: return ELexStatus::Failure;
 		case ELexStatus::Skip: return ELexStatus::Skip;
-		case ELexStatus::Success:
-			if (m_CreateNode)
-			{
-				LexNode currentNode { *lex.getLexer(), m_Name };
-				currentNode.setSourceSpan(source, result.m_Span);
-				parentNode.addChild(std::move(currentNode));
-			}
-			return { ELexStatus::Success, result.m_Span };
+		case ELexStatus::Success: return { ELexStatus::Success, result.m_Span };
+		default: return ELexStatus::Failure;
 		}
 	}
 
@@ -404,7 +414,13 @@ namespace CommonLexer
 		Lex  lex { *this, source };
 		auto rule = getRule(m_MainRule);
 		if (rule && source)
-			rule->lex(lex, lex.getRoot(), source, span);
+		{
+			auto& root = lex.getRoot();
+			root.setRule("Root");
+			auto result = rule->lex(lex, root, source, span);
+			if (result.m_Status == ELexStatus::Success)
+				root.setSourceSpan(source, result.m_Span);
+		}
 		return lex;
 	}
 

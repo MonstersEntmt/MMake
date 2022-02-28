@@ -13,31 +13,33 @@ namespace CommonLexer
 	    : m_Index(index), m_Line(line), m_Column(column) {}
 
 	SourceIterator::SourceIterator()
-	    : m_Source(nullptr), m_Point({}), m_CachedOffset(0) {}
+	    : m_Source(nullptr), m_Point({}), m_CachedOffset(128)
+	{
+		movePoint(0);
+	}
 
 	SourceIterator::SourceIterator(ISource* source, const SourcePoint& point)
-	    : m_Source(nullptr), m_Point(point), m_CachedOffset(0) {}
+	    : m_Source(source), m_Point(point), m_CachedOffset(~0ULL)
+	{
+		movePoint(0);
+	}
 
 	SourceIterator::SourceIterator(ISource* source, SourcePoint&& point)
-	    : m_Source(source), m_Point(std::move(point)), m_CachedOffset(0) {}
-
-	char SourceIterator::operator*()
+	    : m_Source(source), m_Point(std::move(point)), m_CachedOffset(~0ULL)
 	{
-		if (m_CachedOffset >= m_Cached.size())
-		{
-			m_Cached       = m_Source->getSpan(m_Point.m_Index - 128, 256);
-			m_CachedOffset = 0;
-		}
+		movePoint(0);
+	}
 
-		m_Cached[m_CachedOffset];
+	char SourceIterator::operator*() const
+	{
+		if (m_Cached.empty())
+			return '\0';
+		return m_Cached[m_CachedOffset];
 	}
 
 	SourceIterator& SourceIterator::operator++()
 	{
-		++m_CachedOffset;
-		++m_Point.m_Index;
-		m_Point.m_Column = m_Source->getColumnNumberFromIndex(m_Point.m_Index);
-		m_Point.m_Line   = m_Source->getLineNumberFromIndex(m_Point.m_Index);
+		movePoint(1);
 		return *this;
 	}
 
@@ -50,10 +52,7 @@ namespace CommonLexer
 
 	SourceIterator& SourceIterator::operator--()
 	{
-		--m_CachedOffset;
-		--m_Point.m_Index;
-		m_Point.m_Column = m_Source->getColumnNumberFromIndex(m_Point.m_Index);
-		m_Point.m_Line   = m_Source->getLineNumberFromIndex(m_Point.m_Index);
+		movePoint(1, true);
 		return *this;
 	}
 
@@ -66,19 +65,13 @@ namespace CommonLexer
 
 	SourceIterator& SourceIterator::operator+=(std::size_t count)
 	{
-		m_CachedOffset += count;
-		m_Point.m_Index += count;
-		m_Point.m_Column = m_Source->getColumnNumberFromIndex(m_Point.m_Index);
-		m_Point.m_Line   = m_Source->getLineNumberFromIndex(m_Point.m_Index);
+		movePoint(count);
 		return *this;
 	}
 
 	SourceIterator& SourceIterator::operator-=(std::size_t count)
 	{
-		m_CachedOffset -= count;
-		m_Point.m_Index -= count;
-		m_Point.m_Column = m_Source->getColumnNumberFromIndex(m_Point.m_Index);
-		m_Point.m_Line   = m_Source->getLineNumberFromIndex(m_Point.m_Index);
+		movePoint(count, true);
 		return *this;
 	}
 
@@ -110,6 +103,33 @@ namespace CommonLexer
 	bool SourceIterator::operator>=(const SourceIterator& other) const
 	{
 		return m_Point.m_Index >= other.m_Point.m_Index;
+	}
+
+	void SourceIterator::movePoint(std::size_t count, bool negative)
+	{
+		if (negative)
+		{
+			m_CachedOffset -= count;
+			m_Point.m_Index -= count;
+		}
+		else
+		{
+			m_CachedOffset += count;
+			m_Point.m_Index += count;
+		}
+
+		if (m_Source)
+		{
+			m_Point.m_Column = m_Source->getColumnNumberFromIndex(m_Point.m_Index);
+			m_Point.m_Line   = m_Source->getLineNumberFromIndex(m_Point.m_Index);
+
+			if (m_CachedOffset >= m_Cached.size())
+			{
+				std::size_t index = m_Point.m_Index < 128 ? 0 : m_Point.m_Index - 128;
+				m_Cached          = m_Source->getSpan(index, 256);
+				m_CachedOffset    = m_Point.m_Index < 128 ? m_Point.m_Index : 128;
+			}
+		}
 	}
 
 	SourceSpan::SourceSpan()
@@ -171,9 +191,9 @@ namespace CommonLexer
 
 	std::size_t StringSource::getLineNumberFromIndex(std::size_t index)
 	{
-		for (std::size_t i = 0; i < m_LineToIndex.size(); ++i)
-			if (m_LineToIndex[i] > index)
-				return i;
+		for (std::size_t i = m_LineToIndex.size(); i > 0; --i)
+			if (m_LineToIndex[i - 1] <= index)
+				return i - 1;
 		return ~0ULL;
 	}
 
@@ -185,7 +205,7 @@ namespace CommonLexer
 		std::size_t lineStart = getIndexFromLineNumber(line);
 		if (lineStart == ~0ULL)
 			return 1;
-		return index - lineStart;
+		return index - lineStart + 1;
 	}
 
 	std::string StringSource::getSpan(const SourceSpan& span)
