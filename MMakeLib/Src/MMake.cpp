@@ -4,6 +4,7 @@
 #include <CommonCLI/Core.h>
 
 #include <CMakeLexer/Lexer.h>
+#include <CommonLexer/LexerLexer.h>
 
 extern "C"
 {
@@ -142,6 +143,54 @@ namespace MMake
 
 	void RunCMake()
 	{
+		CommonLexer::StringSource lexerSource { R"(
+File?:         LineElement*
+LineElement?:  Line? '([ \t]*#.*)?[ \t]*\n?'
+Line:          NodeRule
+               NonNodeRule
+               CallbackRule
+NodeRule:      Identifier '[ \t]*:[ \t]*' Value
+NonNodeRule:   Identifier '[ \t]*\?[ \t]*:[ \t]*' Value
+CallbackRule:  Identifier '[ \t]*![ \t]*:'
+Identifier:    '[A-Za-z_][A-Za-z0-9_]*'
+Value?:        Branch
+               OneLineValue
+OneLineValue?: Combination
+               Or
+               NonMultValue
+NonMultValue?: ZeroOrMore
+               OneOrMore
+               Optional
+               BasicValue
+BasicValue?:   Group
+               NamedGroup
+               Reference
+               Identifier
+               Regex
+Regex:         '\'(?:[^\'\\\n]|\.|\\.)*\''
+ZeroOrMore:    BasicValue '\*'
+OneOrMore:     BasicValue '\+'
+Optional:      BasicValue '\?'
+Combination:   NonMultValue ('[ \t]+' NonMultValue)+
+Or:            NonMultValue ('[ \t]*\|[ \t]*' NonMultValue)+
+Branch:        OneLineValue ('\n[ \t]*' OneLineValue)+
+Group:         '\([ \t]*' OneLineValue '[ \t]*\)'
+NamedGroup:    '\([ \t]*<[ \t]*' Identifier '[ \t]*>[ \t]*:[ \t]*' OneLineValue '[ \t]*\)'
+Reference:     '\\' Identifier
+)" };
+
+		CommonLexer::LexerLexer lexerLexer;
+
+		auto lexerLex = lexerLexer.lexSource(&lexerSource);
+		if (!lexerLex.getMessages().empty())
+		{
+			for (auto& message : lexerLex.getMessages())
+				PrintMessage(message, &lexerSource);
+			return;
+		}
+
+		PrintLex(lexerLex);
+
 		CommonLexer::StringSource source { R"(
 macro(test_macro)
 	function(test_func)

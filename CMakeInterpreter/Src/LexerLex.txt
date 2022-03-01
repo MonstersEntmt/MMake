@@ -1,28 +1,33 @@
-Line:         Comment | Empty | Rule '\s*' Comment '\s*\n'
-Comment?:     '#.*'
-Empty?:       '\s*'
-Rule:         NodeRule | NonNodeRule
-NodeRule:     Identifier ':\s+' Value
-NonNodeRule:  Identifier '\?:\s+' Value
-Identifier:   '[A-Za-z_][A-Za-z0-9_]*'
-Value:        Identifier
-              Regex
-              Combination
-              Or
-              ZeroOrMore
-              OneOrMore
-              Optional
-              Group
-              Branch
-              NamedGroup
-              Reference
-Regex:        '\'(?:[^\'\\]|\.|\n)*\''
-Combination:  Value ('\s+' Value)*
-Or:           Value ('\s*\|\s*' Value)*
-ZeroOrMore:   Value '\*'
-OneOrMore:    Value '\+'
-Optional:     Value '\?'
-Group:        '\(\s*' Value '\s*\)'
-Branch:       Value ('\n\s+' Value)*
-NamedGroup:   '\(\s*<\s*' Identifier '\s*>\s*:\s*' Value '\s*\)'
-Reference:    '\\' Identifier
+File?:         LineElement*
+LineElement?:  Line? '([ \t]*#.*)?[ \t]*\n?'
+Line:          NodeRule
+               NonNodeRule
+               CallbackRule
+NodeRule:      Identifier '[ \t]*:[ \t]*' Value
+NonNodeRule:   Identifier '[ \t]*\?[ \t]*:[ \t]*' Value
+CallbackRule:  Identifier '[ \t]*![ \t]*:'
+Identifier:    '[A-Za-z_][A-Za-z0-9_]*'
+Value?:        Branch
+               OneLineValue
+OneLineValue?: Combination
+               Or
+               NonMultValue
+NonMultValue?: ZeroOrMore
+               OneOrMore
+               Optional
+               BasicValue
+BasicValue?:   Group
+               NamedGroup
+               Reference
+               Identifier
+               Regex
+Regex:         '\'(?:[^\'\\\n]|\.|\\.)*\''
+ZeroOrMore:    BasicValue '\*'
+OneOrMore:     BasicValue '\+'
+Optional:      BasicValue '\?'
+Combination:   NonMultValue ('[ \t]+' NonMultValue)+
+Or:            NonMultValue ('[ \t]*\|[ \t]*' NonMultValue)+
+Branch:        OneLineValue ('\n[ \t]*' OneLineValue)+
+Group:         '\([ \t]*' OneLineValue '[ \t]*\)'
+NamedGroup:    '\([ \t]*<[ \t]*' Identifier '[ \t]*>[ \t]*:[ \t]*' OneLineValue '[ \t]*\)'
+Reference:     '\\' Identifier

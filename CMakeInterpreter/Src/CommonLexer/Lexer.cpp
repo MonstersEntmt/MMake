@@ -206,25 +206,32 @@ namespace CommonLexer
 
 	LexResult LexMatcherOr::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
-		ELexStatus status       = ELexStatus::Failure;
-		SourceSpan smallestSpan = span;
+		ELexStatus status      = ELexStatus::Failure;
+		LexNode    largestCopy = parentNode;
+		SourceSpan largestSpan = { span.m_Begin, span.m_Begin };
 		for (auto matcher : m_Matchers)
 		{
-			auto result = matcher->lex(lex, parentNode, source, span);
+			LexNode copy   = parentNode;
+			auto    result = matcher->lex(lex, copy, source, span);
 			if (status == ELexStatus::Failure && result.m_Status == ELexStatus::Skip)
 				status = ELexStatus::Skip;
 			if (result.m_Status != ELexStatus::Success)
 				continue;
 			status = ELexStatus::Success;
-			if (result.m_Span.length() < smallestSpan.length())
-				smallestSpan = result.m_Span;
+			if (result.m_Span.length() > largestSpan.length())
+			{
+				largestSpan = result.m_Span;
+				largestCopy = copy;
+			}
 		}
 
 		switch (status)
 		{
 		case ELexStatus::Failure: return ELexStatus::Failure;
 		case ELexStatus::Skip: return ELexStatus::Skip;
-		case ELexStatus::Success: return { ELexStatus::Success, smallestSpan };
+		case ELexStatus::Success:
+			parentNode = largestCopy;
+			return { ELexStatus::Success, largestSpan };
 		default: return ELexStatus::Failure;
 		}
 	}
@@ -257,25 +264,32 @@ namespace CommonLexer
 
 	LexResult LexMatcherBranch::lex([[maybe_unused]] Lex& lex, [[maybe_unused]] LexNode& parentNode, ISource* source, const SourceSpan& span)
 	{
-		ELexStatus status       = ELexStatus::Failure;
-		SourceSpan smallestSpan = span;
+		ELexStatus status      = ELexStatus::Failure;
+		LexNode    largestCopy = parentNode;
+		SourceSpan largestSpan = { span.m_Begin, span.m_Begin };
 		for (auto matcher : m_Matchers)
 		{
-			auto result = matcher->lex(lex, parentNode, source, span);
+			LexNode copy   = parentNode;
+			auto    result = matcher->lex(lex, copy, source, span);
 			if (status == ELexStatus::Failure && result.m_Status == ELexStatus::Skip)
 				status = ELexStatus::Skip;
 			if (result.m_Status != ELexStatus::Success)
 				continue;
 			status = ELexStatus::Success;
-			if (result.m_Span.length() < smallestSpan.length())
-				smallestSpan = result.m_Span;
+			if (result.m_Span.length() >= largestSpan.length())
+			{
+				largestSpan = result.m_Span;
+				largestCopy = copy;
+			}
 		}
 
 		switch (status)
 		{
 		case ELexStatus::Failure: return ELexStatus::Failure;
 		case ELexStatus::Skip: return ELexStatus::Skip;
-		case ELexStatus::Success: return { ELexStatus::Success, smallestSpan };
+		case ELexStatus::Success:
+			parentNode = largestCopy;
+			return { ELexStatus::Success, largestSpan };
 		default: return ELexStatus::Failure;
 		}
 	}
@@ -420,6 +434,8 @@ namespace CommonLexer
 			auto result = rule->lex(lex, root, source, span);
 			if (result.m_Status == ELexStatus::Success)
 				root.setSourceSpan(source, result.m_Span);
+			else
+				root.setSourceSpan(source, {});
 		}
 		return lex;
 	}

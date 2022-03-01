@@ -1,37 +1,8 @@
-# Line:         Comment | Empty | Rule '\s*' Comment '\s*\n'
-# Comment?:      '#.*'
-# Empty?:        '\s*'
-# Rule:         NodeRule | NonNodeRule
-# NodeRule:     Identifier ':\s+' Value
-# NonNodeRule:  Identifier '\?:\s+' Value
-# Identifier:   '[A-Za-z_][A-Za-z0-9_]*'
-# Value:        Identifier
-#               Regex
-#               Combination
-#               Or
-#               ZeroOrMore
-#               OneOrMore
-#               Optional
-#               Group
-#               Branch
-#               NamedGroup
-#               Reference
-# Regex:        '\'(?:[^\'\\]|\.|\n)*\''
-# Combination:  Value ('\s+' Value)*
-# Or:           Value ('\s*\|\s*' Value)*
-# ZeroOrMore:   Value '\*'
-# OneOrMore:    Value '\+'
-# Optional:     Value '\?'
-# Group:        '\(\s*' Value '\s*\)'
-# Branch:       Value ('\n\s+' Value)*
-# NamedGroup:   '\(\s*<\s*' Identifier '\s*>\s*:\s*' Value '\s*\)'
-# Reference:    '\\' Identifier
-
 File:        FileElement*
 FileElement: CommandInvocation LineEnding
              (BracketComment | Space)* LineEnding
 LineEnding:  LineComment? Newline
-Space?:      (' ' | '\t')+
+Space?:      '[ \t]+'
 Newline?:    '\n'
 
 CommandInvocation:  Space* Identifier Space* '\\(' Arguments '\\)'
@@ -61,7 +32,7 @@ UnquotedArgument: UnquotedElement+
                   UnqoutedLegacy
 UnqoutedElement:  EscapeSequence
                   '(?:[^\\s()#"\\\\])+'
-UnquotedLegacy:   <TODO: IDK WHAT THIS IS FUCK CMAKE DOCS>
+UnquotedLegacy!:
 
 EscapeSequence:  '\\(?:[^A-Za-z0-9;]|[trn;])'
 
