@@ -15,10 +15,17 @@ extern "C"
 
 #include <cstdarg>
 
+#include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <regex>
 #include <sstream>
+
+namespace Generated
+{
+	CommonLexer::Lex lexSource(CommonLexer::ISource* source, CommonLexer::SourceSpan span);
+	CommonLexer::Lex lexSource(CommonLexer::ISource* source);
+} // namespace Generated
 
 namespace MMake
 {
@@ -65,27 +72,62 @@ namespace MMake
 		switch (message.getSeverity())
 		{
 		case CommonLexer::EMessageSeverity::Warning:
-			str << CommonCLI::Colors::Warn << "CMakeLexer Warning: ";
+			str << CommonCLI::Colors::Warn << "CommonLexer Warning ";
 			break;
 		case CommonLexer::EMessageSeverity::Error:
-			str << CommonCLI::Colors::Warn << "CMakeLexer Error: ";
+			str << CommonCLI::Colors::Error << "CommonLexer Error ";
 			break;
 		}
+		auto point       = message.getPoint();
+		auto pointLine   = point.getLine(source);
+		auto pointColumn = point.getColumn(source);
+		str << '(' << pointLine << ':' << pointColumn << "): ";
 		str << message.getMessage() << ANSI::GraphicsForegroundDefault << '\n';
 
-		auto& span  = message.getSpan();
-		auto  lines = source->getLines(span.m_Begin.m_Line, span.m_End.m_Line - span.m_Begin.m_Line);
+		auto span        = message.getSpan();
+		auto lines       = source->getLines(span);
+		auto beginLine   = span.m_Begin.getLine(source);
+		auto beginColumn = span.m_Begin.getColumn(source);
+		auto endLine     = span.m_End.getLine(source);
+		auto endColumn   = span.m_End.getColumn(source);
 		for (std::size_t i = 0; i < lines.size(); ++i)
 		{
-			auto& line = lines[i];
-			str << line << '\n';
+			std::string ln   = std::to_string(beginLine + i) + ": ";
+			auto&       line = lines[i];
+			if (line.empty())
+				continue;
+			str << ln << line << '\n'
+			    << std::string(ln.size(), ' ');
+			str << CommonCLI::Colors::Note;
+
 			if (i == 0)
-				str << CommonCLI::Colors::Note << std::string(span.m_Begin.m_Column - 1, ' ') << '^' << std::string(line.size() - span.m_Begin.m_Column, '~');
+			{
+				str << std::string(beginColumn - 1, ' ');
+
+				if (beginLine + i == pointLine)
+				{
+					str << std::string(pointColumn - beginColumn, '~') << '^';
+
+					if (endLine == beginLine)
+						str << std::string(endColumn - pointColumn, '~');
+					else
+						str << std::string(line.size() - pointColumn, '~');
+				}
+				else
+				{
+					str << std::string(line.size() - beginColumn, '~');
+				}
+			}
 			else if (i == lines.size() - 1)
-				str << CommonCLI::Colors::Note << std::string(span.m_End.m_Column, '~');
+			{
+				if (beginLine + i == pointLine)
+					str << std::string(pointColumn - 1, '~') << '^' << std::string(endColumn - pointColumn, '~');
+			}
 			else
-				str << CommonCLI::Colors::Note << std::string(line.size(), '~');
-			str << ANSI::GraphicsBackgroundDefault << '\n';
+			{
+				str << std::string(line.size(), '~');
+			}
+			str << ANSI::GraphicsForegroundDefault << '\n';
 		}
 
 		std::cout << str.str();
@@ -96,102 +138,202 @@ namespace MMake
 		return std::regex_replace(str, std::regex { "\"" }, "\\\"");
 	}
 
-	void PrintLexNode(const CommonLexer::LexNode& node, std::vector<bool>& layers, bool end = true)
+	std::size_t UTF8Codepoints(const std::string& str)
 	{
-		std::ostringstream str;
+		auto itr = str.begin();
+		auto end = str.end();
 
-		for (auto layer : layers)
+		std::size_t count = 0;
+		while (itr != end)
 		{
-			if (layer)
-				str << "\xE2\x94\x82 ";
+			std::uint8_t c = *itr;
+			if (c < 0b1000'0000U)
+				++itr;
+			else if (c < 0b1100'0000U)
+				itr += 2;
+			else if (c < 0b1110'0000U)
+				itr += 3;
+			else if (c < 0b1111'0000U)
+				itr += 4;
+			++count;
+		}
+		return count;
+	}
+
+	void PrintLexNode(const CommonLexer::Node& node, std::vector<std::vector<std::string>>& lines, std::vector<bool>& layers, bool end = true)
+	{
+		{
+			std::vector<std::string> line;
+			std::ostringstream       str;
+
+			for (auto layer : layers)
+			{
+				if (layer)
+					str << "\xE2\x94\x82 ";
+				else
+					str << "  ";
+			}
+
+			if (end)
+				str << "\xE2\x94\x94\xE2\x94\x80";
 			else
-				str << "  ";
+				str << "\xE2\x94\x9C\xE2\x94\x80";
+
+			layers.push_back(!end);
+
+			auto span = node.getSpan();
+			str << node.getRule();
+			line.push_back(str.str());
+			str = {};
+
+			auto beginLine   = span.m_Begin.getLine(node.getSource());
+			auto beginColumn = span.m_Begin.getColumn(node.getSource());
+			auto endLine     = span.m_End.getLine(node.getSource());
+			auto endColumn   = span.m_End.getColumn(node.getSource());
+			str << '(' << beginLine << ':' << beginColumn << " -> " << endLine << ':' << endColumn << ')';
+			line.push_back(str.str());
+			str = {};
+
+			if (beginLine == endLine)
+			{
+				std::string s = node.getSource()->getSpan(span);
+				if (s.find_first_of('\n') >= s.size())
+				{
+					str << "= \"" << EscapeString(s) << '"';
+					line.push_back(str.str());
+				}
+			}
+			lines.push_back(std::move(line));
 		}
 
-		if (end)
-			str << "\xE2\x94\x94\xE2\x94\x80";
-		else
-			str << "\xE2\x94\x9C\xE2\x94\x80";
-
-		layers.push_back(!end);
-
-		auto& span = node.getSpan();
-		str << node.getRule() << " (" << span.m_Begin.m_Line << ":" << span.m_Begin.m_Column << " -> " << span.m_End.m_Line << ":" << span.m_End.m_Column << ')';
-		if (span.m_Begin.m_Line == span.m_End.m_Line)
-		{
-			std::string s = node.getSource()->getSpan(span);
-			if (s.find_first_of('\n') < s.size())
-				str << '\n';
-			else
-				str << " : \"" << EscapeString(s) << "\"\n";
-		}
-		else
-			str << '\n';
-		std::cout << str.str();
 		auto& children = node.getChildren();
 		for (std::size_t i = 0; i < children.size(); ++i)
-			PrintLexNode(children[i], layers, i >= children.size() - 1);
+			PrintLexNode(children[i], lines, layers, i >= children.size() - 1);
 
 		layers.pop_back();
 	}
 
 	void PrintLex(const CommonLexer::Lex& lex)
 	{
-		std::vector<bool> layers;
-		PrintLexNode(lex.getRoot(), layers);
+		std::vector<std::vector<std::string>> lines;
+		std::vector<bool>                     layers;
+		PrintLexNode(lex.getRoot(), lines, layers);
+
+		std::vector<std::size_t> sizes;
+		for (auto& line : lines)
+		{
+			if ((line.size() - 1) > sizes.size())
+				sizes.resize(line.size() - 1, 0);
+
+			for (std::size_t i = 0; i < line.size() - 1; ++i)
+			{
+				auto&       column     = line[i];
+				std::size_t codepoints = UTF8Codepoints(column);
+				if (codepoints > sizes[i])
+					sizes[i] = codepoints;
+			}
+		}
+
+		std::ostringstream str;
+		for (auto& line : lines)
+		{
+			for (std::size_t i = 0; i < line.size(); ++i)
+			{
+				auto& column = line[i];
+				str << column;
+				if (i < line.size() - 1)
+					str << std::string(sizes[i] - UTF8Codepoints(column) + 1, ' ');
+			}
+			str << '\n';
+		}
+		std::cout << str.str();
 	}
 
 	void RunCMake()
 	{
-		CommonLexer::StringSource lexerSource { R"(
-File?:         LineElement*
-LineElement?:  Line? '([ \t]*#.*)?[ \t]*\n?'
-Line:          NodeRule
-               NonNodeRule
-               CallbackRule
-NodeRule:      Identifier '[ \t]*:[ \t]*' Value
-NonNodeRule:   Identifier '[ \t]*\?[ \t]*:[ \t]*' Value
-CallbackRule:  Identifier '[ \t]*![ \t]*:'
-Identifier:    '[A-Za-z_][A-Za-z0-9_]*'
-Value?:        Branch
-               OneLineValue
-OneLineValue?: Combination
-               Or
-               NonMultValue
-NonMultValue?: ZeroOrMore
-               OneOrMore
-               Optional
-               BasicValue
-BasicValue?:   Group
-               NamedGroup
-               Reference
-               Identifier
-               Regex
-Regex:         '\'(?:[^\'\\\n]|\.|\\.)*\''
-ZeroOrMore:    BasicValue '\*'
-OneOrMore:     BasicValue '\+'
-Optional:      BasicValue '\?'
-Combination:   NonMultValue ('[ \t]+' NonMultValue)+
-Or:            NonMultValue ('[ \t]*\|[ \t]*' NonMultValue)+
-Branch:        OneLineValue ('\n[ \t]*' OneLineValue)+
-Group:         '\([ \t]*' OneLineValue '[ \t]*\)'
-NamedGroup:    '\([ \t]*<[ \t]*' Identifier '[ \t]*>[ \t]*:[ \t]*' OneLineValue '[ \t]*\)'
-Reference:     '\\' Identifier
-)" };
+		CommonLexer::StringSource lexerSource(R"kekw(!MainRule = File;
+
+File?:        FileElement*;
+FileElement?: CommandInvocation LineEnding;
+              (BracketComment | Space)* LineEnding;
+LineEnding?:  LineComment? Newline;
+Space?:       '[ \t]+';
+Newline?:     "\n";
+
+CommandInvocation:  Space* Identifier Space* "(" Arguments ")";
+Identifier:         '[A-Za-z_][A-Za-z0-9_]*';
+Arguments:          Argument? SeparatedArguments*;
+SeparatedArguments: Separation+ Argument?;
+					Separation* "(" Arguments ")";
+Separation?:        Space;
+                    LineEnding;
+
+Argument: BracketArgument;
+          QuotedArgument;
+          UnquotedArgument;
+
+BracketArgument: BracketOpen BracketContent BracketClose;
+BracketOpen?:    "[" (<BracketCount>: '='*) "[";
+BracketContent:  (("]" ~\BracketCount) | '[^\\]]' | Newline)*;
+BracketClose?:   "]" \BracketCount "]";
+
+QuotedArgument:     "\"" QuotedElement* "\"";
+QuotedElement:      EscapeSequence;
+                    QuotedContinuation;
+                    (newline | '[^"\\]')+;
+QuotedContinuation: "\\" Newline;
+
+UnquotedArgument: UnquotedElement+;
+                  UnqoutedLegacy;
+UnqoutedElement:  EscapeSequence;
+                  '(?:[^\\s()#"\\\\])+';
+UnquotedLegacy!;
+
+EscapeSequence: '\\(?:[^A-Za-z0-9;]|[trn;])';
+
+LineComment:    '#(?!\\[=*\\[).*';
+BracketComment: "#" BracketArgument;)kekw");
 
 		CommonLexer::LexerLexer lexerLexer;
 
+		auto begin    = std::chrono::high_resolution_clock::now();
 		auto lexerLex = lexerLexer.lexSource(&lexerSource);
+		auto end      = std::chrono::high_resolution_clock::now();
 		if (!lexerLex.getMessages().empty())
-		{
 			for (auto& message : lexerLex.getMessages())
 				PrintMessage(message, &lexerSource);
-			return;
-		}
 
 		PrintLex(lexerLex);
 
-		CommonLexer::StringSource source { R"(
+		std::cout << std::format("\nTime: {:%S} S\n", end - begin);
+
+		auto result = lexerLexer.createCPPLexer(lexerLex);
+		if (!result.m_Messages.empty())
+			for (auto& message : result.m_Messages)
+				PrintMessage(message, &lexerSource);
+
+		auto          cpp = lexerLexer.compileLexer(result, "Generated");
+		std::ofstream f { "Out.cpp" };
+		if (f)
+		{
+			f << cpp;
+			f.close();
+		}
+
+		/*std::cout << "\n^ Original Lex ^\nv New Lex v\n\n";
+
+		auto lexBegin = std::chrono::high_resolution_clock::now();
+		auto lex      = Generated::lexSource(&lexerSource);
+		auto lexEnd   = std::chrono::high_resolution_clock::now();
+		if (!lex.getMessages().empty())
+			for (auto& message : lex.getMessages())
+				PrintMessage(message, &lexerSource);
+
+		PrintLex(lex);
+
+		std::cout << std::format("\nOriginal Lex: {:%S} S\nNew Lex: {:%S} S\n", end - begin, lexEnd - lexBegin);*/
+
+		/*CommonLexer::StringSource source { R"(
 macro(test_macro)
 	function(test_func)
 		macro(another_macro)
@@ -221,6 +363,6 @@ message("Skipped")
 			return;
 		}
 
-		PrintLex(lex);
+		PrintLex(lex);*/
 	}
 } // namespace MMake

@@ -15,16 +15,11 @@ namespace CommonLexer
 	struct SourcePoint
 	{
 	public:
-		SourcePoint();
-		SourcePoint(std::size_t index, std::size_t line, std::size_t column);
-		SourcePoint(const SourcePoint&)     = default;
-		SourcePoint(SourcePoint&&) noexcept = default;
-
-		SourcePoint& operator=(const SourcePoint&) = default;
-		SourcePoint& operator=(SourcePoint&&) noexcept = default;
+		std::size_t getLine(ISource* source) const;
+		std::size_t getColumn(ISource* source) const;
 
 	public:
-		std::size_t m_Index, m_Line, m_Column;
+		std::size_t m_Index = 0;
 	};
 
 	struct SourceIterator
@@ -37,13 +32,7 @@ namespace CommonLexer
 		using iterator_category = std::bidirectional_iterator_tag;
 
 		SourceIterator();
-		SourceIterator(ISource* source, const SourcePoint& point);
-		SourceIterator(ISource* source, SourcePoint&& point);
-		SourceIterator(const SourceIterator& copy)     = default;
-		SourceIterator(SourceIterator&& move) noexcept = default;
-
-		SourceIterator& operator=(const SourceIterator& copy) = default;
-		SourceIterator& operator=(SourceIterator&& move) noexcept = default;
+		SourceIterator(ISource* source, SourcePoint point);
 
 		[[nodiscard]] operator SourcePoint() const { return m_Point; }
 
@@ -77,15 +66,6 @@ namespace CommonLexer
 	struct SourceSpan
 	{
 	public:
-		SourceSpan();
-		SourceSpan(const SourcePoint& begin, const SourcePoint& end);
-		SourceSpan(SourcePoint&& begin, SourcePoint&& end);
-		SourceSpan(const SourceSpan&)     = default;
-		SourceSpan(SourceSpan&&) noexcept = default;
-
-		SourceSpan& operator=(const SourceSpan&) = default;
-		SourceSpan& operator=(SourceSpan&&) noexcept = default;
-
 		SourceIterator begin(ISource* source) const;
 		SourceIterator end(ISource* source) const;
 
@@ -106,20 +86,30 @@ namespace CommonLexer
 
 		[[nodiscard]] SourceSpan getCompleteSpan();
 
-		[[nodiscard]] std::string getSpan(std::size_t index, std::size_t length)
+		[[nodiscard]] virtual std::string getSpan(std::size_t index, std::size_t length) = 0;
+		[[nodiscard]] std::string         getSpan(SourceSpan span)
 		{
-			std::size_t end = index + length;
-			return getSpan({ { index, getLineNumberFromIndex(index), getColumnNumberFromIndex(index) },
-			                 { end, getLineNumberFromIndex(end), getColumnNumberFromIndex(end) } });
+			return getSpan(span.m_Begin.m_Index, span.m_End.m_Index - span.m_Begin.m_Index);
 		}
-		[[nodiscard]] virtual std::string getSpan(const SourceSpan& span) = 0;
 
-		[[nodiscard]] std::string getLine(std::size_t line)
+		[[nodiscard]] virtual std::string getLine(std::size_t line) = 0;
+		[[nodiscard]] virtual std::string getLine(SourcePoint point)
 		{
-			return getLine({ getIndexFromLineNumber(line), line, 1 });
+			return getLine(getLineNumberFromIndex(point.m_Index));
 		}
-		[[nodiscard]] virtual std::string              getLine(const SourcePoint& point)                  = 0;
 		[[nodiscard]] virtual std::vector<std::string> getLines(std::size_t startLine, std::size_t lines) = 0;
+		[[nodiscard]] std::vector<std::string>         getLines(SourcePoint start, SourcePoint end)
+		{
+			auto startLine = getLineNumberFromIndex(start.m_Index);
+			auto endLine   = getLineNumberFromIndex(end.m_Index);
+			return getLines(startLine, (endLine + 1) - startLine);
+		}
+		[[nodiscard]] std::vector<std::string> getLines(SourceSpan span)
+		{
+			auto startLine = getLineNumberFromIndex(span.m_Begin.m_Index);
+			auto endLine   = getLineNumberFromIndex(span.m_End.m_Index);
+			return getLines(startLine, (endLine + 1) - startLine);
+		}
 	};
 
 	class StringSource : public ISource
@@ -128,48 +118,20 @@ namespace CommonLexer
 		explicit StringSource(const std::string& str);
 		explicit StringSource(std::string&& str);
 
-		std::size_t              getSize() override;
-		std::size_t              getNumLines() override;
-		std::size_t              getIndexFromLineNumber(std::size_t line) override;
-		std::size_t              getLineNumberFromIndex(std::size_t index) override;
-		std::size_t              getColumnNumberFromIndex(std::size_t index) override;
-		std::string              getSpan(const SourceSpan& span) override;
-		std::string              getLine(const SourcePoint& point) override;
-		std::vector<std::string> getLines(std::size_t startLine, std::size_t lines) override;
+		virtual std::size_t              getSize() override;
+		virtual std::size_t              getNumLines() override;
+		virtual std::size_t              getIndexFromLineNumber(std::size_t line) override;
+		virtual std::size_t              getLineNumberFromIndex(std::size_t index) override;
+		virtual std::size_t              getColumnNumberFromIndex(std::size_t index) override;
+		virtual std::string              getSpan(std::size_t index, std::size_t length) override;
+		virtual std::string              getLine(std::size_t line) override;
+		virtual std::vector<std::string> getLines(std::size_t startLine, std::size_t lines) override;
 
 	private:
 		void setupLineToIndex();
 
 	private:
 		std::string              m_Str;
-		std::vector<std::size_t> m_LineToIndex;
-	};
-
-	class FileSource : public ISource
-	{
-	public:
-		FileSource(const std::filesystem::path& filepath);
-		~FileSource();
-
-		[[nodiscard]] auto& getFilePath() const { return m_Filepath; }
-		[[nodiscard]] auto& getStream() const { return m_Stream; }
-
-		std::size_t              getSize() override;
-		std::size_t              getNumLines() override;
-		std::size_t              getIndexFromLineNumber(std::size_t line) override;
-		std::size_t              getLineNumberFromIndex(std::size_t index) override;
-		std::size_t              getColumnNumberFromIndex(std::size_t index) override;
-		std::string              getSpan(const SourceSpan& span) override;
-		std::string              getLine(const SourcePoint& point) override;
-		std::vector<std::string> getLines(std::size_t startLine, std::size_t lines) override;
-
-	private:
-		void setupLineToIndex();
-
-	private:
-		std::filesystem::path    m_Filepath;
-		std::ifstream            m_Stream;
-		std::size_t              m_Size;
 		std::vector<std::size_t> m_LineToIndex;
 	};
 } // namespace CommonLexer

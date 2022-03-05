@@ -1,33 +1,83 @@
-File?:         LineElement*
-LineElement?:  Line? '([ \t]*#.*)?[ \t]*\n?'
-Line:          NodeRule
-               NonNodeRule
-               CallbackRule
-NodeRule:      Identifier '[ \t]*:[ \t]*' Value
-NonNodeRule:   Identifier '[ \t]*\?[ \t]*:[ \t]*' Value
-CallbackRule:  Identifier '[ \t]*![ \t]*:'
-Identifier:    '[A-Za-z_][A-Za-z0-9_]*'
-Value?:        Branch
-               OneLineValue
-OneLineValue?: Combination
-               Or
-               NonMultValue
-NonMultValue?: ZeroOrMore
-               OneOrMore
-               Optional
-               BasicValue
-BasicValue?:   Group
-               NamedGroup
-               Reference
-               Identifier
-               Regex
-Regex:         '\'(?:[^\'\\\n]|\.|\\.)*\''
-ZeroOrMore:    BasicValue '\*'
-OneOrMore:     BasicValue '\+'
-Optional:      BasicValue '\?'
-Combination:   NonMultValue ('[ \t]+' NonMultValue)+
-Or:            NonMultValue ('[ \t]*\|[ \t]*' NonMultValue)+
-Branch:        OneLineValue ('\n[ \t]*' OneLineValue)+
-Group:         '\([ \t]*' OneLineValue '[ \t]*\)'
-NamedGroup:    '\([ \t]*<[ \t]*' Identifier '[ \t]*>[ \t]*:[ \t]*' OneLineValue '[ \t]*\)'
-Reference:     '\\' Identifier
+!MainRule       = File;
+!SpaceMethod    = "Whitespace";
+!SpaceDirection = "Both";
+
+File?:                   Declaration,*;
+Declaration?:            EmptyDeclaration;
+                         BlockDeclaration;
+                         OptionDeclaration;
+                         RuleDeclaration;
+                         NodelessRuleDeclaration;
+                         CallbackRuleDeclaration;
+                         Comment;
+EmptyDeclaration?:       ";";
+BlockDeclaration:        "{", Declaration,* "}";
+OptionDeclaration:       "!", Identifier, "=", Value, ";";
+RuleDeclaration:         Identifier, ":", Matcher, ";";
+NodelessRuleDeclaration: Identifier, "?", ":", Matcher, ";";
+CallbackRuleDeclaration: Identifier, "!", ";";
+Comment?:                '#.*';
+
+Identifier: '[A-Za-z_][A-Za-z0-9_]*';
+
+# Option values
+Value?:  Identifier;
+         Boolean;
+         Integer;
+         TextMatcher;
+Boolean: "true" | "false";
+Integer: '[0-9]+';
+
+# Matchers
+Matcher?:       Depth1Matcher;
+Depth1Matcher?: Branch;
+                Depth2Matcher;
+Depth2Matcher?: CombinationMatcher;
+                OrMatcher;
+                Depth3Matcher;
+Depth3Matcher?: ZeroOrMore;
+                OneOrMore;
+                ExactAmount;
+                RangeMatcher;
+                OptionalMatcher;
+                NegativeMatcher;
+                Depth4Matcher;
+Depth4Matcher?: LenientSpaceMatcher;
+                ForcedSpaceMatcher;
+                Depth5Matcher;
+Depth5Matcher?: Group;
+                NamedGroupMatcher;
+                NamedGroupReferenceMatcher;
+                ReferenceMatcher;
+                TextMatcher;
+                RegexMatcher;
+
+# Depth 1
+Branch: Depth2Matcher, (";", Depth2Matcher),+;
+
+# Depth 2
+{
+    !SpaceDirection = "Left";
+    CombinationMatcher: Depth3Matcher Depth3Matcher.+;
+}
+OrMatcher: Depth3Matcher, ("|", Depth3Matcher),+;
+
+# Depth 3
+ZeroOrMore:      Depth4Matcher, "*";
+OneOrMore:       Depth4Matcher, "+";
+ExactAmount:     Depth4Matcher, "{", Integer, "}";
+RangeMatcher:    Depth4Matcher, "{", Integer, ",", Integer, "}";
+OptionalMatcher: Depth4Matcher, "?", ~":";
+NegativeMatcher: "~", Depth4Matcher;
+
+# Depth 4
+LenientSpaceMatcher: Depth5Matcher, ",";
+ForcedSpaceMatcher:  Depth5Matcher, ".";
+
+# Depth 5
+Group:                      "(", Depth2Matcher, ")";
+NamedGroupMatcher:          "(", "<", Identifier, ">", ":", Depth2Matcher, ")";
+NamedGroupReferenceMatcher: "\\", Identifier, ~(("!", ";") | ("?",? ":"));
+ReferenceMatcher:           Identifier, ~(("!", ";") | ("?",? ":"));
+TextMatcher:                '\"(?:[^\"\\\\\n]|\\.|\\\\.)*\"';
+RegexMatcher:               '\'(?:[^\'\\\\\n]|\\.|\\\\.)*\'';

@@ -7,121 +7,122 @@ namespace CMakeLexer
 		using namespace CommonLexer;
 		setMainRule("File");
 
-		registerRule({ "File", new LexMatcherMultiple(new LexMatcherReference("FileElement")) });
+		/*registerRule({ "File", MatcherMultiple(MatcherReference("FileElement")) });
 		registerRule({ "FileElement",
-		               new LexMatcherBranch(
-		                   { new LexMatcherCombination(
-		                         { new LexMatcherReference("CommandInvocation"),
-		                           new LexMatcherReference("LineEnding") }),
-		                     new LexMatcherCombination(
-		                         { new LexMatcherMultiple(new LexMatcherOr(
-		                               { new LexMatcherReference("BracketComment"),
-		                                 new LexMatcherReference("Space") })),
-		                           new LexMatcherReference("LineEnding") }) }) });
+		               MatcherBranch(Tuple {
+		                   MatcherCombination(Tuple {
+		                       MatcherReference("CommandInvocation"),
+		                       MatcherReference("LineEnding") }),
+		                   MatcherCombination(Tuple {
+		                       MatcherMultiple(
+		                           MatcherOr(Tuple {
+		                               MatcherReference("BracketComment"),
+		                               MatcherReference("Space") })),
+		                       MatcherReference("LineEnding") }) }) });
 		registerRule({ "LineEnding",
-		               new LexMatcherCombination(
-		                   { new LexMatcherOptional(new LexMatcherReference("LineComment")),
-		                     new LexMatcherReference("Newline") }),
+		               MatcherCombination(Tuple {
+		                   MatcherOptional(MatcherReference("LineComment")),
+		                   MatcherReference("Newline") }),
 		               false });
-		registerRule({ "Space", new LexMatcherRegex("[ \t]+"), false });
-		registerRule({ "Newline", new LexMatcherRegex("\n"), false });
+		registerRule({ "Space", MatcherRegex("[ \t]+"), false });
+		registerRule({ "Newline", MatcherText("\n"), false });
 
-		registerRule({ "CommandInvocation", new LexMatcherCombination(
-		                                        { new LexMatcherMultiple(new LexMatcherReference("Space")),
-		                                          new LexMatcherReference("Identifier"),
-		                                          new LexMatcherMultiple(new LexMatcherReference("Space")),
-		                                          new LexMatcherRegex("\\("),
-		                                          new LexMatcherReference("Arguments"),
-		                                          new LexMatcherRegex("\\)") }) });
-		registerRule({ "Identifier", new LexMatcherRegex("[A-Za-z_][A-Za-z0-9_]*") });
+		registerRule({ "CommandInvocation", MatcherCombination(Tuple {
+		                                        MatcherMultiple(MatcherReference("Space")),
+		                                        MatcherReference("Identifier"),
+		                                        MatcherMultiple(MatcherReference("Space")),
+		                                        MatcherText("("),
+		                                        MatcherReference("Arguments"),
+		                                        MatcherText(")") }) });
+		registerRule({ "Identifier", MatcherRegex("[A-Za-z_][A-Za-z0-9_]*") });
 		registerRule({ "Arguments",
-		               new LexMatcherCombination(
-		                   { new LexMatcherOptional(new LexMatcherReference("Argument")),
-		                     new LexMatcherMultiple(new LexMatcherReference("SeparatedArguments")) }) });
+		               MatcherCombination(Tuple {
+		                   MatcherOptional(MatcherReference("Argument")),
+		                   MatcherMultiple(MatcherReference("SeparatedArguments")) }) });
 		registerRule({ "SeparatedArguments",
-		               new LexMatcherBranch(
-		                   { new LexMatcherCombination(
-		                         { new LexMatcherMultiple(new LexMatcherReference("Separation"), ELexMatcherMultipleType::OneOrMore),
-		                           new LexMatcherOptional(new LexMatcherReference("Argument")) }),
-		                     new LexMatcherCombination(
-		                         { new LexMatcherMultiple(new LexMatcherReference("Separation")),
-		                           new LexMatcherRegex("\\("),
-		                           new LexMatcherReference("Arguments"),
-		                           new LexMatcherRegex("\\)") }) }) });
-		registerRule({ "Separation",
-		               new LexMatcherReference("Space"), false });
+		               MatcherBranch(Tuple {
+		                   MatcherCombination(Tuple {
+		                       MatcherMultiple(MatcherReference("Separation"), EMatcherMultipleType::OneOrMore),
+		                       MatcherOptional(MatcherReference("Argument")) }),
+		                   MatcherCombination(Tuple {
+		                       MatcherMultiple(MatcherReference("Separation")),
+		                       MatcherText("("),
+		                       MatcherReference("Arguments"),
+		                       MatcherText(")") }) }) });
+		registerRule({ "Separation", MatcherReference("Space"), false });
 
 		registerRule({ "Argument",
-		               new LexMatcherBranch(
-		                   { new LexMatcherReference("BracketArgument"),
-		                     new LexMatcherReference("QuotedArgument"),
-		                     new LexMatcherReference("UnquotedArgument") }) });
+		               MatcherBranch(Tuple {
+		                   MatcherReference("BracketArgument"),
+		                   MatcherReference("QuotedArgument"),
+		                   MatcherReference("UnquotedArgument") }) });
 
 		registerRule({ "BracketArgument",
-		               new LexMatcherCombination(
-		                   { new LexMatcherReference("BracketOpen"),
-		                     new LexMatcherReference("BracketContent"),
-		                     new LexMatcherReference("BracketClose") }) });
+		               MatcherCombination(Tuple {
+		                   MatcherReference("BracketOpen"),
+		                   MatcherReference("BracketContent"),
+		                   MatcherReference("BracketClose") }) });
 		registerRule({ "BracketOpen",
-		               new LexMatcherCombination(
-		                   { new LexMatcherRegex("\\["),
-		                     new LexMatcherNamedGroup("BracketCount", new LexMatcherRegex("=*")) }),
+		               MatcherCombination(Tuple {
+		                   MatcherText("["),
+		                   MatcherNamedGroup("BracketCount", MatcherRegex("=*")) }),
 		               false });
 		registerRule({ "BracketContent",
-		               new LexMatcherMultiple(new LexMatcherOr(
-		                   { new LexMatcherRegex("."),
-		                     new LexMatcherReference("Newline") })),
+		               MatcherMultiple(
+		                   MatcherOr(Tuple {
+		                       MatcherRegex("."),
+		                       MatcherReference("Newline") })),
 		               false });
 		registerRule({ "BracketClose",
-		               new LexMatcherCombination(
-		                   { new LexMatcherRegex("\\]"),
-		                     new LexMatcherNamedGroupReference("BracketCount"),
-		                     new LexMatcherRegex("\\]") }) });
+		               MatcherCombination(Tuple {
+		                   MatcherText("]"),
+		                   MatcherNamedGroupReference("BracketCount"),
+		                   MatcherText("]") }) });
 
 		registerRule({ "QuotedArgument",
-		               new LexMatcherCombination(
-		                   { new LexMatcherRegex("\\\""),
-		                     new LexMatcherMultiple(new LexMatcherReference("QuotedElement")),
-		                     new LexMatcherRegex("\\\"") }) });
+		               MatcherCombination(Tuple {
+		                   MatcherText("\""),
+		                   MatcherMultiple(MatcherReference("QuotedElement")),
+		                   MatcherText("\"") }) });
 		registerRule({ "QuotedElement",
-		               new LexMatcherBranch(
-		                   { new LexMatcherReference("EscapeSequence"),
-		                     new LexMatcherReference("QuotedContinuation"),
-		                     new LexMatcherMultiple(
-		                         new LexMatcherOr(
-		                             { new LexMatcherReference("Newline"),
-		                               new LexMatcherRegex("[^\"\\\\]") }),
-		                         ELexMatcherMultipleType::OneOrMore) }) });
+		               MatcherBranch(Tuple {
+		                   MatcherReference("EscapeSequence"),
+		                   MatcherReference("QuotedContinuation"),
+		                   MatcherMultiple(
+		                       MatcherOr(Tuple {
+		                           MatcherReference("Newline"),
+		                           MatcherRegex("[^\"\\\\]") }),
+		                       EMatcherMultipleType::OneOrMore) }) });
 		registerRule({ "QuotedContinuation",
-		               new LexMatcherCombination(
-		                   { new LexMatcherRegex("\\\\"),
-		                     new LexMatcherReference("Newline") }) });
+		               MatcherCombination(Tuple {
+		                   MatcherText("\\"),
+		                   MatcherReference("Newline") }) });
 
 		registerRule({ "UnquotedArgument",
-		               new LexMatcherBranch(
-		                   { new LexMatcherMultiple(new LexMatcherReference("UnquotedElement"), ELexMatcherMultipleType::OneOrMore),
-		                     new LexMatcherReference("UnquotedLegacy") }) });
+		               MatcherBranch(Tuple {
+		                   MatcherMultiple(MatcherReference("UnquotedElement"), EMatcherMultipleType::OneOrMore),
+		                   MatcherReference("UnquotedLegacy") }) });
 		registerRule({ "UnquotedElement",
-		               new LexMatcherBranch(
-		                   { new LexMatcherReference("EscapeSequence"),
-		                     new LexMatcherRegex("(?:[^\\s()#\\\"\\\\])+") }) });
-		registerRule({ "UnquotedLegacy", new LexMatcherCallback(std::bind(&Lexer::unquotedLegacyCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4)) });
+		               MatcherBranch(Tuple {
+		                   MatcherReference("EscapeSequence"),
+		                   MatcherRegex("(?:[^\\s()#\\\"\\\\])+") }) });
+		registerRule({ "UnquotedLegacy", MatcherCallback(std::bind(&Lexer::unquotedLegacyCallback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4)) });
 
-		registerRule({ "EscapeSequence", new LexMatcherRegex("\\\\(?:[^A-Za-z0-9;]|[trn;])") });
+		registerRule({ "EscapeSequence", MatcherRegex("\\\\(?:[^A-Za-z0-9;]|[trn;])") });
 
-		registerRule({ "LineComment", new LexMatcherRegex("#(?!\\[=*\\[).*") });
+		registerRule({ "LineComment", MatcherRegex("#(?!\\[=*\\[).*") });
 		registerRule({ "BracketComment",
-		               new LexMatcherCombination(
-		                   { new LexMatcherRegex("#"),
-		                     new LexMatcherReference("BracketArgument") }) });
+		               MatcherCombination(Tuple {
+		                   MatcherText("#"),
+		                   MatcherReference("BracketArgument") }) });*/
 	}
 
-	CommonLexer::LexResult Lexer::unquotedLegacyCallback([[maybe_unused]] CommonLexer::Lex& lex, [[maybe_unused]] CommonLexer::LexNode& parentNode, [[maybe_unused]] CommonLexer::ISource* source, [[maybe_unused]] const CommonLexer::SourceSpan& span)
+	CommonLexer::MatchResult Lexer::unquotedLegacyCallback(CommonLexer::MatcherState& state, CommonLexer::SourceSpan span)
 	{
-		auto itr = span.begin(source);
-		auto end = span.end(source);
+		auto itr = span.begin(state.m_Source);
+		auto end = span.end(state.m_Source);
 		if (itr == end || *itr == '"' || *itr == '(')
-			return CommonLexer::ELexStatus::Failure;
+			return { CommonLexer::EMatchStatus::Failure, { span.m_Begin, span.m_Begin } };
 
 		bool insideString = false;
 
@@ -193,8 +194,8 @@ namespace CMakeLexer
 		}
 
 		if (len == 0)
-			return CommonLexer::ELexStatus::Failure;
+			return { CommonLexer::EMatchStatus::Failure, { span.m_Begin, itr } };
 
-		return { CommonLexer::ELexStatus::Success, { span.m_Begin, itr } };
+		return { CommonLexer::EMatchStatus::Success, { span.m_Begin, itr } };
 	}
 } // namespace CMakeLexer

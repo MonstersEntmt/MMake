@@ -1,40 +1,42 @@
-File:        FileElement*
-FileElement: CommandInvocation LineEnding
-             (BracketComment | Space)* LineEnding
-LineEnding:  LineComment? Newline
-Space?:      '[ \t]+'
-Newline?:    '\n'
+!MainRule = File;
 
-CommandInvocation:  Space* Identifier Space* '\\(' Arguments '\\)'
-Identifier:         '[A-Za-z_][A-Za-z0-9_]*'
-Arguments:          Argument? SeparatedArguments*
-SeparatedArguments: Separation+ Argument?
-					Separation* '\\(' Arguments '\\)'
-Separation?:        Space
-                    LineEnding
+File?:        FileElement*;
+FileElement?: CommandInvocation LineEnding;
+              (BracketComment | Space)* LineEnding;
+LineEnding?:  LineComment? Newline;
+Space?:       '[ \t]+';
+Newline?:     "\n";
 
-Argument: BracketArgument
-          QuotedArgument
-          UnquotedArgument
+CommandInvocation:  Space* Identifier Space* "(" Arguments ")";
+Identifier:         '[A-Za-z_][A-Za-z0-9_]*';
+Arguments:          Argument? SeparatedArguments*;
+SeparatedArguments: Separation+ Argument?;
+					Separation* "(" Arguments ")";
+Separation?:        Space;
+                    LineEnding;
 
-BracketArgument: BracketOpen BracketContent BracketClose
-BracketOpen?:    '\\[' (<BracketCount>: '='*) '\\['
-BracketContent:  ('.' | Newline)*
-BracketClose?:   '\\]' \BracketCount '\\]'
+Argument: BracketArgument;
+          QuotedArgument;
+          UnquotedArgument;
 
-QuotedArgument:     '"' QuotedElement* '"'
-QuotedElement:      EscapeSequence
-                    QuotedContinuation
-                    (newline | '[^"\\]')+
-QuotedContinuation: '\\' Newline
+BracketArgument: BracketOpen BracketContent BracketClose;
+BracketOpen?:    "[" (<BracketCount>: '='*) "[";
+BracketContent:  (("]" ~\BracketCount) | '[^\\]]' | Newline)*;
+BracketClose?:   "]" \BracketCount "]";
 
-UnquotedArgument: UnquotedElement+
-                  UnqoutedLegacy
-UnqoutedElement:  EscapeSequence
-                  '(?:[^\\s()#"\\\\])+'
-UnquotedLegacy!:
+QuotedArgument:     "\"" QuotedElement* "\"";
+QuotedElement:      EscapeSequence;
+                    QuotedContinuation;
+                    (newline | '[^"\\]')+;
+QuotedContinuation: "\\" Newline;
 
-EscapeSequence:  '\\(?:[^A-Za-z0-9;]|[trn;])'
+UnquotedArgument: UnquotedElement+;
+                  UnqoutedLegacy;
+UnqoutedElement:  EscapeSequence;
+                  '(?:[^\\s()#"\\\\])+';
+UnquotedLegacy!:;
 
-LineComment:    '#(?!\\[=*\\[).*'
-BracketComment: '#' BracketArgument
+EscapeSequence: '\\(?:[^A-Za-z0-9;]|[trn;])';
+
+LineComment:    '#(?!\\[=*\\[).*';
+BracketComment: "#" BracketArgument;
