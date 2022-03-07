@@ -1,8 +1,10 @@
 #include "CommonLexer/Matchers.h"
 #include "CommonLexer/Lexer.h"
 
-#include <format>
 #include <iostream>
+#include <string_view>
+
+#include <fmt/format.h>
 
 namespace CommonLexer
 {
@@ -136,7 +138,7 @@ namespace CommonLexer
 
 		if (matches < m_LowerBounds)
 		{
-			state.m_Messages.emplace_back(std::format("Expected at least {} matches but only got {} matches", m_LowerBounds, matches), subSpan.m_End, subSpan);
+			state.m_Messages.emplace_back(fmt::format("Expected at least {} matches but only got {} matches", m_LowerBounds, matches), subSpan.m_End, subSpan);
 			return { EMatchStatus::Failure, totalSpan };
 		}
 		return { EMatchStatus::Success, totalSpan };
@@ -187,7 +189,7 @@ namespace CommonLexer
 	}
 
 	SpaceMatcher::SpaceMatcher(std::unique_ptr<IMatcher>&& matcher, bool forced, ESpaceMethod method, ESpaceDirection direction)
-	    : m_Matcher(std::move(matcher)), m_Forced(forced), m_Method(method), m_Direction(direction) {}
+	    : m_Matcher(std::move(matcher)), m_Direction(direction), m_Method(method), m_Forced(forced) {}
 
 	void SpaceMatcher::cleanUp()
 	{
@@ -301,10 +303,10 @@ namespace CommonLexer
 			switch (m_Method)
 			{
 			case ESpaceMethod::Normal:
-				state.m_Messages.emplace_back(std::format("Expected space or tab but got '{}'", itr != end ? std::string { *itr } : "EOF"), span.m_Begin, SourceSpan { span.m_Begin, span.m_Begin });
+				state.m_Messages.emplace_back(fmt::format("Expected space or tab but got '{}'", itr != end ? std::string { *itr } : "EOF"), span.m_Begin, SourceSpan { span.m_Begin, span.m_Begin });
 				break;
 			case ESpaceMethod::Whitespace:
-				state.m_Messages.emplace_back(std::format("Expected space, tab, vertical tab, form feed, carriage return or line feed but got '{}'", itr != end ? std::string { *itr } : "EOF"), span.m_Begin, SourceSpan { span.m_Begin, span.m_Begin });
+				state.m_Messages.emplace_back(fmt::format("Expected space, tab, vertical tab, form feed, carriage return or line feed but got '{}'", itr != end ? std::string { *itr } : "EOF"), span.m_Begin, SourceSpan { span.m_Begin, span.m_Begin });
 				break;
 			}
 			return { EMatchStatus::Failure, { span.m_Begin, span.m_Begin } };
@@ -356,13 +358,13 @@ namespace CommonLexer
 		{
 			if (itr == end)
 			{
-				state.m_Messages.emplace_back(std::format("Expected '{}' but got 'EOF', {}", state.m_Source->getSpan({ groupedItr, groupedEnd }), state.m_CurrentRule->getName()), itr, SourceSpan { span.m_Begin, itr });
+				state.m_Messages.emplace_back(fmt::format("Expected '{}' but got 'EOF', {}", state.m_Source->getSpan({ groupedItr, groupedEnd }), state.m_CurrentRule->getName()), itr, SourceSpan { span.m_Begin, itr });
 				return { EMatchStatus::Failure, { span.m_Begin, itr } };
 			}
 
 			if (*itr != *groupedItr)
 			{
-				state.m_Messages.emplace_back(std::format("Expected '{}' but got '{}', {}", *groupedItr, *itr, state.m_CurrentRule->getName()), itr, SourceSpan { span.m_Begin, itr });
+				state.m_Messages.emplace_back(fmt::format("Expected '{}' but got '{}', {}", *groupedItr, *itr, state.m_CurrentRule->getName()), itr, SourceSpan { span.m_Begin, itr });
 				return { EMatchStatus::Failure, { span.m_Begin, itr } };
 			}
 
@@ -390,7 +392,7 @@ namespace CommonLexer
 			m_Rule = state.m_Lexer->getRule(m_Name);
 			if (!m_Rule)
 			{
-				state.m_Messages.emplace_back(std::format("Expected non existent rule '{}'", m_Name), span.m_Begin, SourceSpan { span.m_Begin, span.m_Begin });
+				state.m_Messages.emplace_back(fmt::format("Expected non existent rule '{}'", m_Name), span.m_Begin, SourceSpan { span.m_Begin, span.m_Begin });
 				return { EMatchStatus::Failure, { span.m_Begin, span.m_Begin } };
 			}
 		}
@@ -415,13 +417,13 @@ namespace CommonLexer
 		{
 			if (itr == end)
 			{
-				state.m_Messages.emplace_back(std::format("Expected '{}' but got 'EOF', {}", std::string_view { textItr, textEnd }, state.m_CurrentRule->getName()), itr, SourceSpan { span.m_Begin, itr });
+				state.m_Messages.emplace_back(fmt::format("Expected '{}' but got 'EOF', {}", std::string_view { textItr.operator->(), static_cast<std::size_t>(textEnd - textItr) }, state.m_CurrentRule->getName()), itr, SourceSpan { span.m_Begin, itr });
 				return { EMatchStatus::Failure, { span.m_Begin, itr } };
 			}
 
 			if (*itr != *textItr)
 			{
-				state.m_Messages.emplace_back(std::format("Expected '{}' but got '{}', {}", *textItr, *itr, state.m_CurrentRule->getName()), itr, SourceSpan { state.m_RuleBegin, itr });
+				state.m_Messages.emplace_back(fmt::format("Expected '{}' but got '{}', {}", *textItr, *itr, state.m_CurrentRule->getName()), itr, SourceSpan { state.m_RuleBegin, itr });
 				return { EMatchStatus::Failure, { span.m_Begin, itr } };
 			}
 
@@ -442,7 +444,7 @@ namespace CommonLexer
 		std::match_results<SourceIterator> results;
 		if (std::regex_search(span.begin(state.m_Source), span.end(state.m_Source), results, m_Regex, std::regex_constants::match_continuous))
 			return { EMatchStatus::Success, { results[0].first, results[0].second } };
-		state.m_Messages.emplace_back(std::format("Expected regex to succeed, but failed. Sadly I don't get regex error messages, maybe in the future ;), {}", state.m_CurrentRule->getName()), span.m_Begin, SourceSpan { span.m_Begin, span.m_Begin });
+		state.m_Messages.emplace_back(fmt::format("Expected regex to succeed, but failed. Sadly I don't get regex error messages, maybe in the future ;), {}", state.m_CurrentRule->getName()), span.m_Begin, SourceSpan { span.m_Begin, span.m_Begin });
 		return { EMatchStatus::Failure, { span.m_Begin, span.m_Begin } };
 	}
 } // namespace CommonLexer

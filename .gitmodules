@@ -4,3 +4,6 @@
 [submodule "ThirdParty/Piccolo"]
 	path = ThirdParty/Piccolo
 	url = https://github.com/PiccoloLang/piccolo.git
+[submodule "ThirdParty/fmt"]
+	path = ThirdParty/fmt
+	url = https://github.com/fmtlib/fmt.git

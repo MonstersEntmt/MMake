@@ -2,6 +2,10 @@
 #include "CommonLexer/Matchers.h"
 #include "CommonLexer/Rule.h"
 
+#include <sstream>
+
+#include <fmt/format.h>
+
 namespace CommonLexer
 {
 	std::uint64_t ReadUInt(std::string_view text)
@@ -870,7 +874,7 @@ namespace CommonLexer
 		}
 		else
 		{
-			result.m_Messages.emplace_back(std::format("Rule '{}' is not a recognized matcher rule", rule), span.m_Begin, span, EMessageSeverity::Warning);
+			result.m_Messages.emplace_back(fmt::format("Rule '{}' is not a recognized matcher rule", rule), span.m_Begin, span, EMessageSeverity::Warning);
 			return nullptr;
 		}
 	}
@@ -905,7 +909,7 @@ namespace CommonLexer
 				auto optionId = source->getSpan(optionIdSpan);
 				if (std::find(declaredOptions.begin(), declaredOptions.end(), optionId) != declaredOptions.end())
 				{
-					result.m_Messages.emplace_back(std::format("OptionDeclaration {} already previously declared", optionId), optionIdSpan.m_Begin, optionIdSpan, EMessageSeverity::Warning);
+					result.m_Messages.emplace_back(fmt::format("OptionDeclaration {} already previously declared", optionId), optionIdSpan.m_Begin, optionIdSpan, EMessageSeverity::Warning);
 					continue;
 				}
 
@@ -946,7 +950,7 @@ namespace CommonLexer
 					}
 					else
 					{
-						result.m_Messages.emplace_back(std::format("SpaceMethod value \"{}\" is not valid, should be either \"Normal\" or \"Whitespace\" ", EscapeText(value)), valueSpan.m_Begin, valueSpan);
+						result.m_Messages.emplace_back(fmt::format("SpaceMethod value \"{}\" is not valid, should be either \"Normal\" or \"Whitespace\" ", EscapeText(value)), valueSpan.m_Begin, valueSpan);
 						continue;
 					}
 				}
@@ -974,7 +978,7 @@ namespace CommonLexer
 					}
 					else
 					{
-						result.m_Messages.emplace_back(std::format("SpaceDirection value \"{}\" is not valid, should be either \"Left\", \"Right\" or \"Both\" ", EscapeText(value)), valueSpan.m_Begin, valueSpan);
+						result.m_Messages.emplace_back(fmt::format("SpaceDirection value \"{}\" is not valid, should be either \"Left\", \"Right\" or \"Both\" ", EscapeText(value)), valueSpan.m_Begin, valueSpan);
 						continue;
 					}
 				}
@@ -1017,14 +1021,14 @@ namespace CommonLexer
 				auto ruleId = source->getSpan(ruleIdSpan);
 				if (result.m_Lexer.getRule(ruleId))
 				{
-					result.m_Messages.emplace_back(std::format("Rule {} has already been declared", ruleId), ruleIdSpan.m_Begin, declarationSpan);
+					result.m_Messages.emplace_back(fmt::format("Rule {} has already been declared", ruleId), ruleIdSpan.m_Begin, declarationSpan);
 					continue;
 				}
 
 				auto matcher = handleMatcher(result, lex, *matcherNode, settings);
 				if (!matcher)
 				{
-					result.m_Messages.emplace_back(std::format("Rule {} failed to create its matchers", ruleId), matcherSpan.m_Begin, declarationSpan);
+					result.m_Messages.emplace_back(fmt::format("Rule {} failed to create its matchers", ruleId), matcherSpan.m_Begin, declarationSpan);
 					continue;
 				}
 				result.m_Lexer.registerRule(std::make_unique<MatcherRule>(ruleId, std::move(matcher), true));
@@ -1050,14 +1054,14 @@ namespace CommonLexer
 				auto ruleId = source->getSpan(ruleIdSpan);
 				if (result.m_Lexer.getRule(ruleId))
 				{
-					result.m_Messages.emplace_back(std::format("Rule {} has already been declared", ruleId), ruleIdSpan.m_Begin, declarationSpan);
+					result.m_Messages.emplace_back(fmt::format("Rule {} has already been declared", ruleId), ruleIdSpan.m_Begin, declarationSpan);
 					continue;
 				}
 
 				auto matcher = handleMatcher(result, lex, *matcherNode, settings);
 				if (!matcher)
 				{
-					result.m_Messages.emplace_back(std::format("Rule {} failed to create its matchers", ruleId), matcherSpan.m_Begin, declarationSpan);
+					result.m_Messages.emplace_back(fmt::format("Rule {} failed to create its matchers", ruleId), matcherSpan.m_Begin, declarationSpan);
 					continue;
 				}
 				result.m_Lexer.registerRule(std::make_unique<MatcherRule>(ruleId, std::move(matcher), false));
@@ -1075,14 +1079,14 @@ namespace CommonLexer
 				auto ruleId = source->getSpan(ruleIdSpan);
 				if (result.m_Lexer.getRule(ruleId))
 				{
-					result.m_Messages.emplace_back(std::format("Rule {} has already been declared", ruleId), ruleIdSpan.m_Begin, declarationSpan);
+					result.m_Messages.emplace_back(fmt::format("Rule {} has already been declared", ruleId), ruleIdSpan.m_Begin, declarationSpan);
 					continue;
 				}
 
 				auto callbackItr = callbacks.find(ruleId);
 				if (callbackItr == callbacks.end())
 				{
-					result.m_Messages.emplace_back(std::format("Missing callback for rule {}", ruleId), declarationSpan.m_Begin, declarationSpan);
+					result.m_Messages.emplace_back(fmt::format("Missing callback for rule {}", ruleId), declarationSpan.m_Begin, declarationSpan);
 					continue;
 				}
 
@@ -1090,7 +1094,7 @@ namespace CommonLexer
 			}
 			else
 			{
-				result.m_Messages.emplace_back(std::format("Rule {} is not a recognized declaration", rule), declarationSpan.m_Begin, declarationSpan, EMessageSeverity::Warning);
+				result.m_Messages.emplace_back(fmt::format("Rule {} is not a recognized declaration", rule), declarationSpan.m_Begin, declarationSpan, EMessageSeverity::Warning);
 				continue;
 			}
 		}
@@ -1147,13 +1151,13 @@ namespace CommonLexer
 			    << indents << "\t{\n"
 			    << indents << "\t\tif (itr == end)\n"
 			    << indents << "\t\t{\n"
-			    << indents << "\t\t\t" << stateID << ".m_Messages.emplace_back(std::format(\"Expected '{}' but got 'EOF', " << ruleId << "\", std::string_view { textItr, textEnd }), itr, CommonLexer::SourceSpan { " << spanID << ".m_Begin, itr });\n"
+			    << indents << "\t\t\t" << stateID << ".m_Messages.emplace_back(fmt::format(\"Expected '{}' but got 'EOF', " << ruleId << "\", std::string_view { textItr, textEnd }), itr, CommonLexer::SourceSpan { " << spanID << ".m_Begin, itr });\n"
 			    << indents << "\t\t\t" << resultID << " = { CommonLexer::EMatchStatus::Failure, { " << spanID << ".m_Begin, itr } };\n"
 			    << indents << "\t\t\tbreak;\n"
 			    << indents << "\t\t}\n\n"
 			    << indents << "\t\tif (*itr != *textItr)\n"
 			    << indents << "\t\t{\n"
-			    << indents << "\t\t\t" << stateID << ".m_Messages.emplace_back(std::format(\"Expected '{}' but got '{}', " << ruleId << "\", *textItr, *itr), itr, CommonLexer::SourceSpan { " << spanID << ".m_Begin, itr });\n"
+			    << indents << "\t\t\t" << stateID << ".m_Messages.emplace_back(fmt::format(\"Expected '{}' but got '{}', " << ruleId << "\", *textItr, *itr), itr, CommonLexer::SourceSpan { " << spanID << ".m_Begin, itr });\n"
 			    << indents << "\t\t\t" << resultID << " = { CommonLexer::EMatchStatus::Failure, { " << spanID << ".m_Begin, itr } };\n"
 			    << indents << "\t\t}\n\n"
 			    << indents << "\t\t++itr;\n"
@@ -1203,13 +1207,13 @@ namespace CommonLexer
 			    << indents << "\t{\n"
 			    << indents << "\t\tif (itr == end)\n"
 			    << indents << "\t\t{\n"
-			    << indents << "\t\t\t" << stateID << ".m_Messages.emplace_back(std::format(\"Expected '{}' but got 'EOF', " << ruleId << "\", std::string_view { textItr, textEnd }), itr, CommonLexer::SourceSpan { " << spanID << ".m_Begin, itr });\n"
+			    << indents << "\t\t\t" << stateID << ".m_Messages.emplace_back(fmt::format(\"Expected '{}' but got 'EOF', " << ruleId << "\", std::string_view { textItr, textEnd }), itr, CommonLexer::SourceSpan { " << spanID << ".m_Begin, itr });\n"
 			    << indents << "\t\t\t" << resultID << " = { CommonLexer::EMatchStatus::Failure, { " << spanID << ".m_Begin, itr } };\n"
 			    << indents << "\t\t\tbreak;\n"
 			    << indents << "\t\t}\n\n"
 			    << indents << "\t\tif (*itr != *textItr)\n"
 			    << indents << "\t\t{\n"
-			    << indents << "\t\t\t" << stateID << ".m_Messages.emplace_back(std::format(\"Expected '{}' but got '{}', " << ruleId << "\", *textItr, *itr), itr, CommonLexer::SourceSpan { " << spanID << ".m_Begin, itr });\n"
+			    << indents << "\t\t\t" << stateID << ".m_Messages.emplace_back(fmt::format(\"Expected '{}' but got '{}', " << ruleId << "\", *textItr, *itr), itr, CommonLexer::SourceSpan { " << spanID << ".m_Begin, itr });\n"
 			    << indents << "\t\t\t" << resultID << " = { CommonLexer::EMatchStatus::Failure, { " << spanID << ".m_Begin, itr } };\n"
 			    << indents << "\t\t}\n\n"
 			    << indents << "\t\t++itr;\n"
@@ -1343,7 +1347,7 @@ namespace CommonLexer
 				    << indents << "\t\t}\n\n"
 				    << indents << "\t\tif (i == 0)\n"
 				    << indents << "\t\t{\n"
-				    << indents << "\t\t\t" << stateID << ".m_Messages.emplace_back(std::format(\"Expected ";
+				    << indents << "\t\t\t" << stateID << ".m_Messages.emplace_back(fmt::format(\"Expected ";
 				switch (settings.m_SpaceMethod)
 				{
 				case ESpaceMethod::Normal:
@@ -1426,7 +1430,7 @@ namespace CommonLexer
 				    << indents << "\t\t\t}\n\n"
 				    << indents << "\t\t\tif (i == 0)\n"
 				    << indents << "\t\t\t{\n"
-				    << indents << "\t\t\t\t" << stateID << ".m_Messages.emplace_back(std::format(\"Expected ";
+				    << indents << "\t\t\t\t" << stateID << ".m_Messages.emplace_back(fmt::format(\"Expected ";
 				switch (settings.m_SpaceMethod)
 				{
 				case ESpaceMethod::Normal:
@@ -1721,7 +1725,7 @@ namespace CommonLexer
 			if (lowerBounds != 0)
 				str << indents << "\tif (" << matchesID << " < " << std::to_string(lowerBounds) << ")\n"
 				    << indents << "\t{\n"
-				    << indents << "\t\t" << stateID << ".m_Messages.emplace_back(std::format(\"Expected at least " << std::to_string(lowerBounds) << " matches but only got {} matches\", " << matchesID << "), " << subSpanID << ".m_End, " << subSpanID << ");\n"
+				    << indents << "\t\t" << stateID << ".m_Messages.emplace_back(fmt::format(\"Expected at least " << std::to_string(lowerBounds) << " matches but only got {} matches\", " << matchesID << "), " << subSpanID << ".m_End, " << subSpanID << ");\n"
 				    << indents << "\t\t" << resultID << " = { CommonLexer::EMatchResult::Failure, " << totalSpanID << " };\n"
 				    << indents << "\t}\n"
 				    << indents << "\telse\n"
@@ -1786,7 +1790,7 @@ namespace CommonLexer
 			    << indents << "\t}\n"
 			    << indents << "\tif (" << matchesID << " < " << std::to_string(amount) << ")\n"
 			    << indents << "\t{\n"
-			    << indents << "\t\t" << stateID << ".m_Messages.emplace_back(std::format(\"Expected exactly " << std::to_string(amount) << " matches but only got {} matches\", " << matchesID << "), " << subSpanID << ".m_End, " << subSpanID << ");\n"
+			    << indents << "\t\t" << stateID << ".m_Messages.emplace_back(fmt::format(\"Expected exactly " << std::to_string(amount) << " matches but only got {} matches\", " << matchesID << "), " << subSpanID << ".m_End, " << subSpanID << ");\n"
 			    << indents << "\t\t" << resultID << " = { CommonLexer::EMatchStatus::Failure, " << totalSpanID << " };\n"
 			    << indents << "\t}\n"
 			    << indents << "\telse\n"
@@ -1840,7 +1844,7 @@ namespace CommonLexer
 			    << indents << "\t}\n"
 			    << indents << "\tif (" << matchesID << " < 1)\n"
 			    << indents << "\t{\n"
-			    << indents << "\t\t" << stateID << ".m_Messages.emplace_back(std::format(\"Expected one or more matches but only got {} matches\", " << matchesID << "), " << subSpanID << ".m_End, " << subSpanID << ");\n"
+			    << indents << "\t\t" << stateID << ".m_Messages.emplace_back(fmt::format(\"Expected one or more matches but only got {} matches\", " << matchesID << "), " << subSpanID << ".m_End, " << subSpanID << ");\n"
 			    << indents << "\t\t" << resultID << " = { CommonLexer::EMatchStatus::Failure, " << totalSpanID << " };\n"
 			    << indents << "\t}\n"
 			    << indents << "\telse\n"
@@ -2094,8 +2098,8 @@ namespace CommonLexer
 		}
 		else
 		{
-			result.m_Messages.emplace_back(std::format("Rule '{}' is not a recognized matcher rule", rule), span.m_Begin, span, EMessageSeverity::Warning);
-			return std::format("/* ERROR: {} is not a recognized matcher rule */", rule);
+			result.m_Messages.emplace_back(fmt::format("Rule '{}' is not a recognized matcher rule", rule), span.m_Begin, span, EMessageSeverity::Warning);
+			return fmt::format("/* ERROR: {} is not a recognized matcher rule */", rule);
 		}
 	}
 
@@ -2129,7 +2133,7 @@ namespace CommonLexer
 				auto optionId = source->getSpan(optionIdSpan);
 				if (std::find(declaredOptions.begin(), declaredOptions.end(), optionId) != declaredOptions.end())
 				{
-					result.m_Messages.emplace_back(std::format("OptionDeclaration {} already previously declared", optionId), optionIdSpan.m_Begin, optionIdSpan, EMessageSeverity::Warning);
+					result.m_Messages.emplace_back(fmt::format("OptionDeclaration {} already previously declared", optionId), optionIdSpan.m_Begin, optionIdSpan, EMessageSeverity::Warning);
 					continue;
 				}
 
@@ -2170,7 +2174,7 @@ namespace CommonLexer
 					}
 					else
 					{
-						result.m_Messages.emplace_back(std::format("SpaceMethod value \"{}\" is not valid, should be either \"Normal\" or \"Whitespace\" ", EscapeText(value)), valueSpan.m_Begin, valueSpan);
+						result.m_Messages.emplace_back(fmt::format("SpaceMethod value \"{}\" is not valid, should be either \"Normal\" or \"Whitespace\" ", EscapeText(value)), valueSpan.m_Begin, valueSpan);
 						continue;
 					}
 				}
@@ -2198,7 +2202,7 @@ namespace CommonLexer
 					}
 					else
 					{
-						result.m_Messages.emplace_back(std::format("SpaceDirection value \"{}\" is not valid, should be either \"Left\", \"Right\" or \"Both\" ", EscapeText(value)), valueSpan.m_Begin, valueSpan);
+						result.m_Messages.emplace_back(fmt::format("SpaceDirection value \"{}\" is not valid, should be either \"Left\", \"Right\" or \"Both\" ", EscapeText(value)), valueSpan.m_Begin, valueSpan);
 						continue;
 					}
 				}
@@ -2241,7 +2245,7 @@ namespace CommonLexer
 				auto ruleId = source->getSpan(ruleIdSpan);
 				if (result.m_Rules.find(ruleId) != result.m_Rules.end())
 				{
-					result.m_Messages.emplace_back(std::format("Rule {} has already been declared", ruleId), ruleIdSpan.m_Begin, declarationSpan);
+					result.m_Messages.emplace_back(fmt::format("Rule {} has already been declared", ruleId), ruleIdSpan.m_Begin, declarationSpan);
 					continue;
 				}
 
@@ -2286,7 +2290,7 @@ namespace CommonLexer
 				auto ruleId = source->getSpan(ruleIdSpan);
 				if (result.m_Rules.find(ruleId) != result.m_Rules.end())
 				{
-					result.m_Messages.emplace_back(std::format("Rule {} has already been declared", ruleId), ruleIdSpan.m_Begin, declarationSpan);
+					result.m_Messages.emplace_back(fmt::format("Rule {} has already been declared", ruleId), ruleIdSpan.m_Begin, declarationSpan);
 					continue;
 				}
 
@@ -2317,7 +2321,7 @@ namespace CommonLexer
 				auto ruleId = source->getSpan(ruleIdSpan);
 				if (result.m_Rules.find(ruleId) != result.m_Rules.end())
 				{
-					result.m_Messages.emplace_back(std::format("Rule {} has already been declared", ruleId), ruleIdSpan.m_Begin, declarationSpan);
+					result.m_Messages.emplace_back(fmt::format("Rule {} has already been declared", ruleId), ruleIdSpan.m_Begin, declarationSpan);
 					continue;
 				}
 
@@ -2325,7 +2329,7 @@ namespace CommonLexer
 			}
 			else
 			{
-				result.m_Messages.emplace_back(std::format("Rule {} is not a recognized declaration", rule), declarationSpan.m_Begin, declarationSpan, EMessageSeverity::Warning);
+				result.m_Messages.emplace_back(fmt::format("Rule {} is not a recognized declaration", rule), declarationSpan.m_Begin, declarationSpan, EMessageSeverity::Warning);
 				continue;
 			}
 		}

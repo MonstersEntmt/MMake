@@ -21,6 +21,9 @@ extern "C"
 #include <regex>
 #include <sstream>
 
+#include <fmt/chrono.h>
+#include <fmt/format.h>
+
 namespace Generated
 {
 	CommonLexer::Lex lexSource(CommonLexer::ISource* source, CommonLexer::SourceSpan span);
@@ -305,7 +308,7 @@ BracketComment: "#" BracketArgument;)kekw");
 
 		PrintLex(lexerLex);
 
-		std::cout << std::format("\nTime: {:%S} S\n", end - begin);
+		std::cout << fmt::format("\nTime: {:%S} S\n", end - begin);
 
 		auto result = lexerLexer.createCPPLexer(lexerLex);
 		if (!result.m_Messages.empty())
@@ -331,7 +334,7 @@ BracketComment: "#" BracketArgument;)kekw");
 
 		PrintLex(lex);
 
-		std::cout << std::format("\nOriginal Lex: {:%S} S\nNew Lex: {:%S} S\n", end - begin, lexEnd - lexBegin);*/
+		std::cout << fmt::format("\nOriginal Lex: {:%S} S\nNew Lex: {:%S} S\n", end - begin, lexEnd - lexBegin);*/
 
 		/*CommonLexer::StringSource source { R"(
 macro(test_macro)

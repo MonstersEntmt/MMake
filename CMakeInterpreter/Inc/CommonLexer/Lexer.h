@@ -5,6 +5,8 @@
 #include "Rule.h"
 #include "Source.h"
 
+#include <unordered_map>
+
 namespace CommonLexer
 {
 	struct Lex

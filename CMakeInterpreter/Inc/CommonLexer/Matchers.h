@@ -233,7 +233,7 @@ namespace CommonLexer
 
 	template <Matcher Matcher>
 	SpaceMatcher::SpaceMatcher(Matcher&& matcher, bool forced, ESpaceMethod method, ESpaceDirection direction)
-	    : m_Matcher(std::make_unique<Matcher>(std::move(matcher))), m_Forced(forced), m_Method(method), m_Direction(direction)
+	    : m_Matcher(std::make_unique<Matcher>(std::move(matcher))), m_Direction(direction), m_Method(method), m_Forced(forced)
 	{
 	}
 
